@@ -10,7 +10,7 @@ _LOGGER = logging.getLogger(__name__)
 class ZendureSmartFlowCoordinator(DataUpdateCoordinator):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry):
         self.entry = entry
-        self.entry_id = entry.entry_id   # ✅ DAS FEHLTE
+        self.entry_id = entry.entry_id
 
         super().__init__(
             hass,
@@ -20,8 +20,21 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator):
         )
 
     async def _async_update_data(self):
-        # Dummy-Daten für jetzt
+        """
+        Zentrale Datenstruktur für ALLE Sensoren.
+        MUSS immer alle Keys enthalten!
+        """
+
         return {
-            "status": "ready",
-            "reason": "initial_test"
+            # Hauptstatus (KI-Status)
+            "ai_status": "initial",
+
+            # Steuerungsempfehlung für Automationen
+            "recommendation": "standby",
+
+            # Debug / Text / Erklärung
+            "debug": "Initialer Start – noch keine Berechnung erfolgt",
+
+            # Optional: später erweiterbar
+            "reason": "startup",
         }
