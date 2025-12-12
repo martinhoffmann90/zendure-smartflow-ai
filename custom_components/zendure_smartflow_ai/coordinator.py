@@ -1,98 +1,217 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any
+from typing import Any, List
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from homeassistant.util.dt import now
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+
+from .const import DOMAIN
 
 
-class SmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
-    """Zentraler Daten- & Berechnungs-Coordinator"""
+class ZendureSmartFlowCoordinator(DataUpdateCoordinator):
+    """Central brain of Zendure SmartFlow AI"""
 
     def __init__(self, hass: HomeAssistant, entry):
         self.hass = hass
         self.entry = entry
+        self.entry_id = entry.entry_id
 
         super().__init__(
             hass,
             logger=None,
-            name="Zendure SmartFlow AI Coordinator",
+            name="Zendure SmartFlow AI",
             update_interval=timedelta(seconds=30),
         )
 
+    # ============================================================
+    # 🔁 UPDATE LOOP
+    # ============================================================
+
     async def _async_update_data(self) -> dict[str, Any]:
         try:
-            return await self._collect_and_calculate()
+            return self._calculate()
         except Exception as err:
-            raise UpdateFailed(f"SmartFlow Update fehlgeschlagen: {err}") from err
+            return {
+                "ai_status": "fehler",
+                "recommendation": "standby",
+                "debug": f"Fehler: {err}",
+                "debug_attributes": {},
+            }
 
-    async def _collect_and_calculate(self) -> dict[str, Any]:
-        # ---------- ENTITÄTEN AUS CONFIG FLOW ----------
-        soc_entity = self.entry.data["soc_entity"]
-        price_entity = self.entry.data["price_export_entity"]
-        cheap_threshold = self.entry.data["cheap_threshold"]
-        expensive_threshold = self.entry.data["expensive_threshold"]
-        max_charge = self.entry.data["max_charge"]
-        max_discharge = self.entry.data["max_discharge"]
-        battery_kwh = self.entry.data["battery_kwh"]
-        soc_min = self.entry.data["soc_min"]
-        soc_max = self.entry.data["soc_max"]
+    # ============================================================
+    # 🧠 CORE LOGIC
+    # ============================================================
 
-        # ---------- SOC ----------
-        soc = float(self.hass.states.get(soc_entity).state)
+    def _calculate(self) -> dict[str, Any]:
+        # ------------------------------------------------------------
+        # 🔧 CONFIG
+        # ------------------------------------------------------------
+        cfg = self.entry.data
 
-        soc_clamped = max(0.0, min(100.0, soc))
-        usable_kwh = battery_kwh * max(soc_clamped - soc_min, 0) / 100
+        soc_entity = cfg["soc_entity"]
+        price_entity = cfg["price_export_entity"]
 
-        # ---------- PREISE ----------
-        price_state = self.hass.states.get(price_entity)
-        if not price_state:
-            raise UpdateFailed("Preisquelle nicht verfügbar")
+        soc_min = cfg["soc_min"]
+        soc_max = cfg["soc_max"]
+        battery_kwh = cfg["battery_kwh"]
 
-        export = price_state.attributes.get("data")
-        if not export:
-            raise UpdateFailed("Preisquelle enthält keine Daten")
+        max_charge_w = cfg["max_charge_w"]
+        max_discharge_w = cfg["max_discharge_w"]
 
-        prices = [float(p["price_per_kwh"]) for p in export]
+        expensive_threshold = cfg["price_expensive"]
+
+        # ------------------------------------------------------------
+        # 🔋 SOC
+        # ------------------------------------------------------------
+        soc = float(self._state(soc_entity, 0))
+        soc_clamped = min(max(soc, 0), 100)
+
+        usable_kwh = max(soc_clamped - soc_min, 0) / 100 * battery_kwh
+
+        # ------------------------------------------------------------
+        # 💰 PRICE SERIES
+        # ------------------------------------------------------------
+        export = self.hass.states.get(price_entity)
+        if not export or not export.attributes.get("data"):
+            return self._result(
+                ai_status="datenproblem_preise",
+                recommendation="standby",
+                debug="Keine Preisdaten verfügbar",
+            )
+
+        prices: List[float] = [
+            float(p["price_per_kwh"])
+            for p in export.attributes["data"]
+            if "price_per_kwh" in p
+        ]
 
         if not prices:
-            raise UpdateFailed("Preisliste leer")
+            return self._result(
+                ai_status="datenproblem_preise",
+                recommendation="standby",
+                debug="Preisliste leer",
+            )
 
-        # Index ab JETZT (15-Minuten Raster)
-        minutes_now = now().hour * 60 + now().minute
-        idx_now = minutes_now // 15
-
-        future_prices = prices[idx_now:]
-
-        # ---------- PREISSTATISTIK ----------
-        min_price = min(future_prices)
-        max_price = max(future_prices)
-        avg_price = sum(future_prices) / len(future_prices)
+        current_price = prices[0]
+        min_price = min(prices)
+        max_price = max(prices)
+        avg_price = sum(prices) / len(prices)
         span = max_price - min_price
 
+        # ------------------------------------------------------------
+        # 📈 DYNAMIC THRESHOLD
+        # ------------------------------------------------------------
         dynamic_expensive = avg_price + span * 0.25
         expensive = max(expensive_threshold, dynamic_expensive)
 
-        # ---------- PEAKS ----------
-        peak_slots = [p for p in future_prices if p >= expensive]
+        # ------------------------------------------------------------
+        # 🔥 PEAK DETECTION
+        # ------------------------------------------------------------
+        peak_slots = [p for p in prices if p >= expensive]
+
+        if not peak_slots:
+            return self._result(
+                ai_status="keine_peaks",
+                recommendation="standby",
+                debug=f"Keine Peaks > {round(expensive,3)} €/kWh",
+                extra={
+                    "current_price": current_price,
+                    "min_price": min_price,
+                    "max_price": max_price,
+                },
+            )
+
+        first_peak_idx = prices.index(peak_slots[0])
+        minutes_to_peak = first_peak_idx * 15
+
+        # ------------------------------------------------------------
+        # ⚡ ENERGY CALC
+        # ------------------------------------------------------------
+        discharge_kw = max_discharge_w * 0.85 / 1000
+        charge_kw = max_charge_w * 0.75 / 1000
+
         peak_hours = len(peak_slots) * 0.25
+        needed_kwh = peak_hours * discharge_kw
+        missing_kwh = max(needed_kwh - usable_kwh, 0)
 
-        needed_kwh = peak_hours * (max_discharge / 1000)
+        need_minutes = (missing_kwh / charge_kw * 60) if missing_kwh > 0 else 0
 
-        # ---------- ZUSAMMENBAU ----------
+        # ------------------------------------------------------------
+        # 🟢 CHEAPEST SLOT
+        # ------------------------------------------------------------
+        cheapest_price = min_price
+        cheapest_idx = prices.index(cheapest_price)
+        cheapest_in_future = cheapest_idx > 0
+
+        # ------------------------------------------------------------
+        # 🧠 DECISION TREE (DE)
+        # ------------------------------------------------------------
+
+        # 1) Teuer jetzt
+        if current_price >= expensive:
+            if soc <= soc_min:
+                return self._result(
+                    ai_status="teuer_jetzt_akkuschutz",
+                    recommendation="standby",
+                    debug="Teurer Preis, Akku unter Reserve",
+                )
+            else:
+                return self._result(
+                    ai_status="teuer_jetzt_entladen_empfohlen",
+                    recommendation="entladen",
+                    debug="Teurer Preis, Entladen sinnvoll",
+                )
+
+        # 2) Peak kommt + Energie fehlt
+        if missing_kwh > 0 and minutes_to_peak <= need_minutes + 30:
+            return self._result(
+                ai_status="laden_notwendig_fuer_peak",
+                recommendation="ki_laden",
+                debug=f"Peak in {round(minutes_to_peak/60,2)}h, {round(missing_kwh,2)} kWh fehlen",
+            )
+
+        # 3) Günstigste Phase kommt noch
+        if cheapest_in_future and soc < soc_max:
+            return self._result(
+                ai_status="guenstigste_phase_kommt_noch",
+                recommendation="standby",
+                debug=f"Günstigste Phase bei {round(cheapest_price,3)} €/kWh",
+            )
+
+        # 4) Günstigste Phase verpasst
+        if not cheapest_in_future and soc < soc_max:
+            return self._result(
+                ai_status="guenstigste_phase_verpasst",
+                recommendation="ki_laden",
+                debug="Günstigste Phase war bereits",
+            )
+
+        # 5) Alles ok
+        return self._result(
+            ai_status="ausreichend_geladen",
+            recommendation="standby",
+            debug="Kein Handlungsbedarf",
+        )
+
+    # ============================================================
+    # 🧰 HELPERS
+    # ============================================================
+
+    def _state(self, entity_id: str, default: Any = None) -> Any:
+        s = self.hass.states.get(entity_id)
+        return s.state if s else default
+
+    def _result(
+        self,
+        ai_status: str,
+        recommendation: str,
+        debug: str,
+        extra: dict | None = None,
+    ) -> dict[str, Any]:
         return {
-            "soc": soc_clamped,
-            "soc_min": soc_min,
-            "soc_max": soc_max,
-            "usable_kwh": usable_kwh,
-            "battery_kwh": battery_kwh,
-            "prices": future_prices,
-            "min_price": min_price,
-            "max_price": max_price,
-            "avg_price": avg_price,
-            "expensive": expensive,
-            "cheap": cheap_threshold,
-            "needed_kwh": needed_kwh,
+            "ai_status": ai_status,
+            "recommendation": recommendation,
+            "debug": debug,
+            "debug_attributes": extra or {},
         }
