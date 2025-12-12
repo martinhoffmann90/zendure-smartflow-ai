@@ -19,7 +19,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator):
 
         super().__init__(
             hass,
-            LOGGER,
+            logger=LOGGER,
             name="Zendure SmartFlow AI",
             update_interval=timedelta(seconds=30),
         )
