@@ -1,5 +1,7 @@
 DOMAIN = "zendure_smartflow_ai"
 
+SENSOR_STATUS = "status"
+SENSOR_RECOMMENDATION = "recommendation"
 CONF_SOC_SENSOR = "soc_sensor"
 CONF_PRICE_SENSOR = "price_sensor"
 CONF_MAX_CHARGE = "max_charge_power"
