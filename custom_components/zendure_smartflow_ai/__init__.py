@@ -1,44 +1,101 @@
 from __future__ import annotations
 
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+import json
+from pathlib import Path
+from homeassistant.components.sensor import SensorEntity
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
-from .coordinator import ZendureSmartFlowCoordinator
-
-
-async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Set up integration via YAML (not used, but required)."""
-    return True
+DOMAIN = "zendure_smartflow_ai"
+_TRANSLATIONS = {}
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Zendure SmartFlow AI from a config entry."""
+def _load_translation(lang: str) -> dict:
+    if lang in _TRANSLATIONS:
+        return _TRANSLATIONS[lang]
 
-    coordinator = ZendureSmartFlowCoordinator(hass, entry)
-    await coordinator.async_config_entry_first_refresh()
+    base = Path(__file__).parent / "translations"
+    path = base / f"{lang}.json"
+    if not path.exists():
+        path = base / "en.json"
 
-    hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.entry_id] = coordinator
+    data = json.loads(path.read_text(encoding="utf-8"))
+    _TRANSLATIONS[lang] = data
+    return data
 
-    # Forward setup to platforms (sensor, later switch, button, etc.)
-    await hass.config_entries.async_forward_entry_setups(
-        entry,
-        ["sensor"]
+
+def _t(hass, section: str, key: str) -> str:
+    lang = (hass.config.language or "en").lower()
+    data = _load_translation(lang)
+    return (
+        data.get("state", {})
+        .get(section, {})
+        .get(key, key)
     )
 
-    return True
 
-
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
-
-    unload_ok = await hass.config_entries.async_unload_platforms(
-        entry,
-        ["sensor"]
+async def async_setup_entry(hass, entry, async_add_entities):
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+    async_add_entities(
+        [
+            ZendureAIStatusSensor(coordinator),
+            ZendureAIRecommendationSensor(coordinator),
+            ZendureAIDebugSensor(coordinator),
+        ]
     )
 
-    if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
 
-    return unload_ok
+class ZendureAIStatusSensor(CoordinatorEntity, SensorEntity):
+    _attr_name = "Zendure SmartFlow AI Status"
+    _attr_icon = "mdi:brain"
+
+    def __init__(self, coordinator):
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.entry_id}_ai_status"
+
+    @property
+    def native_value(self):
+        return self.coordinator.data.get("ai_status")
+
+    @property
+    def extra_state_attributes(self):
+        key = self.coordinator.data.get("ai_status", "data_missing")
+        return {
+            "status_text": _t(self.hass, "ai_status", key)
+        }
+
+
+class ZendureAIRecommendationSensor(CoordinatorEntity, SensorEntity):
+    _attr_name = "Zendure Akku Steuerungsempfehlung"
+    _attr_icon = "mdi:battery-heart"
+
+    def __init__(self, coordinator):
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.entry_id}_recommendation"
+
+    @property
+    def native_value(self):
+        return self.coordinator.data.get("recommendation")
+
+    @property
+    def extra_state_attributes(self):
+        key = self.coordinator.data.get("recommendation", "standby")
+        return {
+            "recommendation_text": _t(self.hass, "recommendation", key)
+        }
+
+
+class ZendureAIDebugSensor(CoordinatorEntity, SensorEntity):
+    _attr_name = "Zendure SmartFlow AI Debug"
+    _attr_icon = "mdi:bug"
+
+    def __init__(self, coordinator):
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.entry_id}_debug"
+
+    @property
+    def native_value(self):
+        return "ok"
+
+    @property
+    def extra_state_attributes(self):
+        return self.coordinator.data.get("debug", {})
