@@ -1,10 +1,12 @@
 {
-  "title": "Zendure SmartFlow AI",
   "state": {
-    "charging": "charging",
-    "cheap_wait": "waiting for cheap period",
-    "peak_wait": "waiting for peak",
-    "overpriced": "too expensive",
-    "ok": "balanced"
+    "zendure_smartflow_ai": {
+      "NO_DATA": "No price data available",
+      "EXPENSIVE_NOW_PROTECT": "High price – battery protection active",
+      "EXPENSIVE_NOW_DISCHARGE": "High price – discharging recommended",
+      "CHARGE_FOR_PEAK": "Charging required for upcoming price peak",
+      "WAIT_FOR_CHEAPEST": "Waiting for cheapest price window",
+      "IDLE": "No action required"
+    }
   }
 }
