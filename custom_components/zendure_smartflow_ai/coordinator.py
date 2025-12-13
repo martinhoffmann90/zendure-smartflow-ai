@@ -10,10 +10,11 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 
-class ZendureSmartFlowCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
+class ZendureSmartFlowCoordinator(DataUpdateCoordinator):
     def __init__(self, hass: HomeAssistant, entry):
         self.hass = hass
         self.entry = entry
+        self.entry_id = entry.entry_id   # ✅ DAS FEHLT
 
         super().__init__(
             hass,
