@@ -33,7 +33,7 @@ def _t(hass, section: str, key: str) -> str:
     )
 
 
-async def async_setup_entry(hass, entry, async_add_entities):
+async def async_setup_entry(hass, entry):
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities(
         [
