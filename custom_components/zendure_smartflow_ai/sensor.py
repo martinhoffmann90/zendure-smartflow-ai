@@ -150,16 +150,19 @@ class ZendureSmartFlowDebugSensor(_BaseZendureSensor):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         data = self.coordinator.data or {}
+        debug = data.get("debug", {}) or {}
+
         return {
             "ai_status": data.get("ai_status"),
             "recommendation": data.get("recommendation"),
-            "price_now": data.get("price_now"),
-            "min_price": data.get("min_price"),
-            "max_price": data.get("max_price"),
-            "avg_price": data.get("avg_price"),
-            "expensive_threshold": data.get("expensive_threshold"),
-            "usable_kwh": data.get("usable_kwh"),
-            "missing_kwh": data.get("missing_kwh"),
-            "cheapest_future": data.get("cheapest_future"),
-            "details": data.get("details", {}),
+
+            # Preise & Berechnungen aus debug
+            "price_now": debug.get("current_price"),
+            "min_price": debug.get("min_price"),
+            "max_price": debug.get("max_price"),
+            "avg_price": debug.get("avg_price"),
+            "expensive_threshold": debug.get("dynamic_expensive"),
+            "usable_kwh": debug.get("usable_kwh"),
+            "missing_kwh": debug.get("missing_kwh"),
+            "cheapest_future": debug.get("cheapest_future"),
         }
