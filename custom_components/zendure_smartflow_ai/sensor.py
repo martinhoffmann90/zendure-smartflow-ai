@@ -145,11 +145,7 @@ class ZendureSmartFlowDebugSensor(_BaseZendureSensor):
 
     @property
     def native_value(self) -> str:
-        # Debug als kurzer Text (State max 255 beachten!)
-        dbg = (self.coordinator.data or {}).get("debug", "")
-        if dbg is None:
-            return ""
-        return str(dbg)[:255]
+        return "ok"
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
