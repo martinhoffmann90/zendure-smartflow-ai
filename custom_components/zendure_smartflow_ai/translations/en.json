@@ -1,12 +1,20 @@
 {
   "state": {
-    "zendure_smartflow_ai": {
-      "NO_DATA": "No price data available",
-      "EXPENSIVE_NOW_PROTECT": "High price – battery protection active",
-      "EXPENSIVE_NOW_DISCHARGE": "High price – discharging recommended",
-      "CHARGE_FOR_PEAK": "Charging required for upcoming price peak",
-      "WAIT_FOR_CHEAPEST": "Waiting for cheapest price window",
-      "IDLE": "No action required"
+    "ai_status": {
+      "data_missing": "Price data missing",
+      "expensive_now_discharge": "Expensive now – discharge recommended",
+      "expensive_now_battery_protect": "Expensive now – battery protection",
+      "cheap_phase_coming": "Cheapest phase still ahead",
+      "cheap_phase_missed": "Cheapest phase missed",
+      "peak_coming_need_charge": "Peak coming – charging required",
+      "battery_ok": "Battery sufficiently charged"
+    },
+    "recommendation": {
+      "standby": "Standby",
+      "ai_charge": "AI charging",
+      "charge": "Charging",
+      "discharge": "Discharging",
+      "cheap_charge": "Cheap charging"
     }
   }
 }
