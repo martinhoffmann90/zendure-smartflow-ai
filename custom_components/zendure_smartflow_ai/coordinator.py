@@ -10,8 +10,15 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-
 _LOGGER = logging.getLogger(__name__)
+
+# -----------------------------
+# Modi (GUI / Optionen)
+# -----------------------------
+MODE_AUTOMATIC = "Automatik"
+MODE_SUMMER = "Sommer"
+MODE_WINTER = "Winter"
+MODE_MANUAL = "Manuell"
 
 
 @dataclass
@@ -143,10 +150,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
 
     async def _apply_control(self, mode: str, in_w: float, out_w: float) -> None:
-        """
-        Apply only if changed enough -> verhindert Flattern & Log-Spam.
-        """
-        # kleine Totzone
+        """Apply only if changed enough -> verhindert Flattern & Log-Spam."""
         def changed(a: float | None, b: float, tol: float) -> bool:
             if a is None:
                 return True
@@ -193,18 +197,19 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         minutes = (now.hour * 60) + now.minute
         return int(minutes // 15)
 
-
     def _find_first_peak_start(self, future: list[float], expensive: float) -> int | None:
         for i, p in enumerate(future):
             if p >= expensive:
                 return i
         return None
 
-    def _find_cheapest_before_peak(self, future: list[float], peak_start: int | None) -> tuple[int | None, float | None]:
+    def _find_cheapest_before_peak(
+        self, future: list[float], peak_start: int | None
+    ) -> tuple[int | None, float | None]:
         if not future:
             return None, None
         if peak_start is None or peak_start <= 0:
-            # kein Peak -> günstigste Phase in den nächsten 24h (oder wieviel future liefert)
+            # kein Peak -> günstigste Phase in future
             m = min(future)
             return future.index(m), m
         window = future[:peak_start]  # nur VOR dem Peak
@@ -215,14 +220,19 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
+            # ✅ data IMMER zuerst definieren
+            data: dict[str, Any] = {}
+
+            # Modus aus Options (GUI) – fallback Automatik
+            mode = self.entry.options.get("mode", MODE_AUTOMATIC)
+            data["mode"] = mode
+
             # --- Basiswerte lesen ---
             soc = _f(self._get_state(self.entities.soc), 0.0)
             pv = _f(self._get_state(self.entities.pv), 0.0)
             load = _f(self._get_state(self.entities.load), 0.0)
             price_now = _f(self._get_state(self.entities.price_now), 0.0)
 
-            data.setdefault("mode", MODE_AUTOMATIC)
-            
             soc_min = _f(self._get_state(self.entities.soc_min), 12.0)
             soc_max = _f(self._get_state(self.entities.soc_max), 95.0)
 
@@ -230,7 +240,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             soc_notfall = max(soc_min - 4.0, 5.0)
 
             expensive_threshold = _f(self._get_state(self.entities.expensive_threshold), 0.35)
-
             max_charge = _f(self._get_state(self.entities.max_charge), 2000.0)
             max_discharge = _f(self._get_state(self.entities.max_discharge), 700.0)
 
@@ -272,8 +281,16 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             in_w = 0.0
             out_w = 0.0
 
+            # 0) MANUELL: niemals steuern (wichtig gegen Flattern/Zucken)
+            if mode == MODE_MANUAL:
+                ai_status = "manuell"
+                recommendation = "standby"
+                control_mode = "input"
+                in_w = 0.0
+                out_w = 0.0
+
             # 1) Harte Notladung
-            if soc <= soc_notfall and soc < soc_max:
+            elif soc <= soc_notfall and soc < soc_max:
                 ai_status = "notladung_aktiv"
                 recommendation = "billig_laden"
                 control_mode = "input"
@@ -292,18 +309,24 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     ai_status = "teuer_jetzt_entladen"
                     recommendation = "entladen"
                     control_mode = "output"
-                    # simple: decke Hauslast (netto) ab
                     need = max(load - pv, 0.0)
                     out_w = min(max_discharge, need)
                     in_w = 0.0
 
-            # 3) Wenn wir im billigsten Slot (vor Peak oder allgemein) sind -> aktiv laden
+            # 3) Günstigster Slot -> aktiv laden (aber im Sommer NICHT aus dem Netz)
             elif in_cheapest_slot and soc < soc_max:
-                ai_status = "günstig_jetzt_laden"
-                recommendation = "ki_laden"
-                control_mode = "input"
-                in_w = max_charge
-                out_w = 0.0
+                if mode == MODE_SUMMER:
+                    ai_status = "günstig_jetzt_sommer_keine_netzladung"
+                    recommendation = "standby"
+                    control_mode = "input"
+                    in_w = 0.0
+                    out_w = 0.0
+                else:
+                    ai_status = "günstig_jetzt_laden"
+                    recommendation = "ki_laden"
+                    control_mode = "input"
+                    in_w = max_charge
+                    out_w = 0.0
 
             # 4) PV-Überschuss -> laden (sanft)
             elif surplus > 80 and soc < soc_max:
@@ -315,7 +338,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # 5) Sonst standby
             else:
-                # falls SoC unter Reserve: niemals entladen
                 ai_status = "standby"
                 recommendation = "standby"
                 control_mode = "input"
@@ -323,10 +345,11 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 out_w = 0.0
 
             # --- Steuerung anwenden ---
-            # Wichtig: nur steuern, wenn Limits/Mode vorhanden sind
-            await self._apply_control(control_mode, in_w, out_w)
+            if mode != MODE_MANUAL:
+                await self._apply_control(control_mode, in_w, out_w)
 
             details = {
+                "mode": mode,
                 "price_now": round(price_now, 4),
                 "min_price_future": round(minp, 4),
                 "max_price_future": round(maxp, 4),
@@ -339,6 +362,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "peak_start_idx": peak_start,
                 "cheapest_idx": cheapest_idx,
                 "cheapest_price": cheapest_price,
+                "in_cheapest_slot": in_cheapest_slot,
                 "soc": round(soc, 2),
                 "soc_min": round(soc_min, 2),
                 "soc_max": round(soc_max, 2),
@@ -353,12 +377,15 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "set_output_w": round(out_w, 0),
             }
 
-            return {
-                "ai_status": ai_status,
-                "recommendation": recommendation,
-                "debug": "OK",
-                "details": details,
-            }
+            data.update(
+                {
+                    "ai_status": ai_status,
+                    "recommendation": recommendation,
+                    "debug": "OK",
+                    "details": details,
+                }
+            )
+            return data
 
         except Exception as err:
             raise UpdateFailed(f"Update failed: {err}") from err
