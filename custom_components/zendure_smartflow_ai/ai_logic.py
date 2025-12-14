@@ -1,162 +1,147 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
-from statistics import mean
+from typing import Any
+
+from .constants import MODE_AUTOMATIC, MODE_MANUAL, MODE_SUMMER, MODE_WINTER
 
 
 def calculate_ai_state(
     *,
-    prices: List[float],
-    current_price: float,
     soc: float,
     soc_min: float,
     soc_max: float,
-    soc_emergency: float,
-    usable_kwh: float,
-    max_charge_w: float,
-    max_discharge_w: float,
-    expensive_threshold: float,
-) -> Dict[str, Any]:
+    pv: float,
+    load: float,
+    price_now: float,
+    future_prices: list[float],
+    expensive_threshold_fixed: float,
+    mode: str,
+) -> dict[str, Any]:
     """
-    Zentrale KI-Entscheidungslogik für Zendure SmartFlow AI.
-
     Liefert:
-      - ai_status        (interner KI-Zustand, technisch)
-      - recommendation  (für Steuerung / Automationen)
-      - debug            (kurzer Text, state-tauglich)
-      - details          (strukturierte Debug-Daten als Attribute)
+      - ai_status: kurzer Status-Key (für Übersetzungen)
+      - recommendation: 'standby' | 'laden' | 'billig_laden' | 'ki_laden' | 'entladen'
+      - debug: sehr kurzer State (max 255 wird in sensor.py begrenzt)
+      - details: dict mit Zahlen/Infos (als Attribute)
     """
 
-    result: Dict[str, Any] = {
-        "ai_status": "idle",
-        "recommendation": "idle",
-        "debug": "OK",
-        "details": {},
-        "price_now": current_price,
-        "expensive_threshold": expensive_threshold,
-    }
+    # Clamp
+    soc = max(0.0, min(100.0, soc))
+    soc_min = max(0.0, min(100.0, soc_min))
+    soc_max = max(0.0, min(100.0, soc_max))
 
-    # ------------------------------------------------------------------
-    # 0) Grundprüfungen
-    # ------------------------------------------------------------------
-    if not prices or len(prices) < 2:
-        result["ai_status"] = "no_price_data"
-        result["recommendation"] = "idle"
-        result["debug"] = "NO_PRICE_DATA"
-        return result
+    soc_notfall = max(soc_min - 4.0, 5.0)
+    surplus = max(pv - load, 0.0)
 
-    future_prices = prices[:]  # ab jetzt
-    min_price = min(future_prices)
-    max_price = max(future_prices)
-    avg_price = mean(future_prices)
+    # Preisstatistik
+    future = future_prices or []
+    if future:
+        minp = min(future)
+        maxp = max(future)
+        avg = sum(future) / len(future)
+        span = maxp - minp
+        dynamic_expensive = avg + span * 0.25
+        expensive = max(expensive_threshold_fixed, dynamic_expensive)
+    else:
+        minp = price_now
+        maxp = price_now
+        avg = price_now
+        dynamic_expensive = expensive_threshold_fixed
+        expensive = expensive_threshold_fixed
 
-    # ------------------------------------------------------------------
-    # 1) Notfall: Akku schützen (höchste Priorität)
-    # ------------------------------------------------------------------
-    if soc <= soc_emergency:
-        result["ai_status"] = "emergency"
-        result["recommendation"] = "emergency_charge"
-        result["debug"] = "EMERGENCY_CHARGE"
-        result["details"] = {
-            "reason": "soc_emergency",
-            "soc": soc,
-        }
-        return result
-
-    # ------------------------------------------------------------------
-    # 2) Peak-Analyse (intern, nicht als State!)
-    # ------------------------------------------------------------------
-    peak_slots = [p for p in future_prices if p >= expensive_threshold]
-    peak_hours = len(peak_slots) * 0.25
-
-    discharge_kw = max_discharge_w / 1000.0 if max_discharge_w > 0 else 0
-    charge_kw = max_charge_w / 1000.0 if max_charge_w > 0 else 0
-
-    needed_kwh = peak_hours * discharge_kw
-    missing_kwh = max(needed_kwh - usable_kwh, 0)
-
-    # erster Peak-Index
-    first_peak_idx = None
-    for i, p in enumerate(future_prices):
-        if p >= expensive_threshold:
-            first_peak_idx = i
+    # Peak start (erste teure Phase)
+    peak_start = None
+    for i, p in enumerate(future):
+        if p >= expensive:
+            peak_start = i
             break
 
-    minutes_to_peak = first_peak_idx * 15 if first_peak_idx is not None else None
+    # Günstigster Slot VOR Peak (oder allgemein, wenn kein Peak)
+    cheapest_idx = None
+    cheapest_price = None
+    if future:
+        if peak_start is None or peak_start <= 0:
+            cheapest_price = min(future)
+            cheapest_idx = future.index(cheapest_price)
+        else:
+            window = future[:peak_start]
+            if window:
+                cheapest_price = min(window)
+                cheapest_idx = window.index(cheapest_price)
 
-    if charge_kw > 0:
-        need_minutes = (missing_kwh / charge_kw) * 60 if missing_kwh > 0 else 0
+    in_cheapest_slot = (cheapest_idx == 0) if cheapest_idx is not None else False
+
+    # ===== Modus-Handling (Option A: nur Empfehlung, keine Steuerung) =====
+    if mode == MODE_MANUAL:
+        ai_status = "mode_manual"
+        recommendation = "standby"
     else:
-        need_minutes = 0
+        # Kernlogik: teuer jetzt -> entladen (wenn möglich), sonst schützen
+        if price_now >= expensive:
+            if soc <= soc_min:
+                ai_status = "expensive_now_protect"
+                recommendation = "standby"
+            else:
+                ai_status = "expensive_now_discharge"
+                recommendation = "entladen"
 
-    safety_margin = 30  # Minuten
+        # Notfall
+        elif soc <= soc_notfall and soc < soc_max:
+            ai_status = "emergency_charge"
+            recommendation = "billig_laden"
 
-    # ------------------------------------------------------------------
-    # 3) ZWANGSLADEN: Laden muss JETZT beginnen
-    # ------------------------------------------------------------------
-    if (
-        first_peak_idx is not None
-        and missing_kwh > 0
-        and minutes_to_peak is not None
-        and minutes_to_peak <= (need_minutes + safety_margin)
-        and soc < soc_max
-    ):
-        result["ai_status"] = "charge_required"
-        result["recommendation"] = "charge_now"
-        result["debug"] = "CHARGE_NOW_FOR_PEAK"
-        result["details"] = {
-            "missing_kwh": round(missing_kwh, 2),
-            "minutes_to_peak": minutes_to_peak,
-            "need_minutes": round(need_minutes, 1),
-        }
-        return result
+        # günstigster Slot (vor Peak oder allgemein) -> laden
+        elif in_cheapest_slot and soc < soc_max:
+            ai_status = "cheapest_now_charge"
+            recommendation = "ki_laden"
 
-    # ------------------------------------------------------------------
-    # 4) PV-Überschuss (wird außerhalb bewertet, hier nur freigeben)
-    # ------------------------------------------------------------------
-    # → recommendation pv_charge wird im Coordinator gesetzt,
-    #   wenn Überschuss gemeldet wird
+        # PV Überschuss -> laden
+        elif surplus > 80 and soc < soc_max:
+            ai_status = "pv_surplus_charge"
+            recommendation = "laden"
 
-    # ------------------------------------------------------------------
-    # 5) Teure Phase → Entladen sinnvoll
-    # ------------------------------------------------------------------
-    if current_price >= expensive_threshold and soc > (soc_min + 2):
-        result["ai_status"] = "expensive_now"
-        result["recommendation"] = "discharge"
-        result["debug"] = "DISCHARGE_RECOMMENDED"
-        result["details"] = {
-            "current_price": current_price,
-            "threshold": expensive_threshold,
-        }
-        return result
+        else:
+            ai_status = "standby"
+            recommendation = "standby"
 
-    # ------------------------------------------------------------------
-    # 6) Warten auf günstigste Phase
-    # ------------------------------------------------------------------
-    cheapest_idx = future_prices.index(min_price)
-    cheapest_future = cheapest_idx > 0
+        # Sommer/Winter Feinheit (nur Empfehlung)
+        if mode == MODE_SUMMER and recommendation in ("billig_laden", "ki_laden"):
+            # im Sommer keine Netz-Ladeorgien
+            ai_status = "mode_summer_standby"
+            recommendation = "standby"
 
-    if cheapest_future and soc < soc_max:
-        result["ai_status"] = "waiting_cheapest"
-        result["recommendation"] = "wait_for_cheapest"
-        result["debug"] = "WAIT_FOR_CHEAPEST"
-        result["details"] = {
-            "cheapest_price": min_price,
-            "minutes_to_cheapest": cheapest_idx * 15,
-        }
-        return result
+        if mode == MODE_WINTER:
+            # Winter lässt Netzladen eher zu -> keine Änderung nötig (Info-Key optional)
+            pass
 
-    # ------------------------------------------------------------------
-    # 7) Default
-    # ------------------------------------------------------------------
-    result["ai_status"] = "idle"
-    result["recommendation"] = "idle"
-    result["debug"] = "IDLE"
-    result["details"] = {
-        "min_price": min_price,
-        "max_price": max_price,
-        "avg_price": round(avg_price, 4),
-        "missing_kwh": round(missing_kwh, 2),
+    details = {
+        "soc": round(soc, 2),
+        "soc_min": round(soc_min, 2),
+        "soc_max": round(soc_max, 2),
+        "soc_notfall": round(soc_notfall, 2),
+        "pv": round(pv, 1),
+        "load": round(load, 1),
+        "surplus": round(surplus, 1),
+        "price_now": round(price_now, 4),
+        "min_price_future": round(minp, 4),
+        "max_price_future": round(maxp, 4),
+        "avg_price_future": round(avg, 4),
+        "expensive_threshold_fixed": round(expensive_threshold_fixed, 4),
+        "expensive_threshold_dynamic": round(dynamic_expensive, 4),
+        "expensive_threshold_effective": round(expensive, 4),
+        "future_len": len(future),
+        "peak_start_idx": peak_start,
+        "cheapest_idx": cheapest_idx,
+        "cheapest_price": cheapest_price,
+        "in_cheapest_slot": in_cheapest_slot,
+        "mode": mode,
     }
 
-    return result
+    return {
+        "ai_status": ai_status,
+        "recommendation": recommendation,
+        "debug": "OK",
+        "details": details,
+        "price_now": price_now,
+        "expensive_threshold": expensive,
+    }
