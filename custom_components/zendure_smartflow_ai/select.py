@@ -28,8 +28,7 @@ async def async_setup_entry(
 class ZendureBetriebsmodus(SelectEntity):
     _attr_name = "Zendure Betriebsmodus"
     _attr_icon = "mdi:toggle-switch"
-    _attr_options = OPTIONS
-    _attr_entity_category = EntityCategory.CONFIG
+    _attr_options = ["Automatik", "Sommer", "Winter", "Manuell"]
     _attr_has_entity_name = True
 
     def __init__(self, coordinator, entry: ConfigEntry) -> None:
