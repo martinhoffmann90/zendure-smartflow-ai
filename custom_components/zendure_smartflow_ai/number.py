@@ -1,19 +1,19 @@
+from __future__ import annotations
+
 from homeassistant.components.number import NumberEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import (
-    DOMAIN,
-    DEVICE_MANUFACTURER,
-    DEVICE_MODEL,
-    DEVICE_NAME,
-    DEFAULT_SOC_MIN,
-    DEFAULT_SOC_MAX,
-)
+from .constants import DOMAIN, DEFAULT_SOC_MIN, DEFAULT_SOC_MAX
+from .coordinator import ZendureSmartFlowCoordinator
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities,
+) -> None:
+    coordinator: ZendureSmartFlowCoordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities(
         [
             ZendureSocMinNumber(coordinator, entry),
@@ -22,45 +22,55 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     )
 
 
-class _BaseSocNumber(NumberEntity):
-    _attr_native_min_value = 0
-    _attr_native_max_value = 100
-    _attr_native_step = 1
-    _attr_mode = "box"
+class _BaseZendureNumber(NumberEntity):
+    _attr_native_min_value = 0.0
+    _attr_native_max_value = 100.0
+    _attr_native_step = 0.5
+    _attr_unit_of_measurement = "%"
 
-    def __init__(self, coordinator, entry: ConfigEntry):
+    def __init__(self, coordinator: ZendureSmartFlowCoordinator, entry: ConfigEntry) -> None:
         self.coordinator = coordinator
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "manufacturer": DEVICE_MANUFACTURER,
-            "model": DEVICE_MODEL,
-            "name": DEVICE_NAME,
-        }
+        self.entry = entry
+
+    async def _persist(self, key: str, value: float) -> None:
+        await self.coordinator.async_set_setting(key, value)
 
 
-class ZendureSocMinNumber(_BaseSocNumber):
-    _attr_name = "Zendure SoC Minimum"
+class ZendureSocMinNumber(_BaseZendureNumber):
     _attr_icon = "mdi:battery-low"
+    _attr_name = "Zendure SoC Minimum"
 
-    def __init__(self, coordinator, entry: ConfigEntry):
+    def __init__(self, coordinator: ZendureSmartFlowCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
         self._attr_unique_id = f"{entry.entry_id}_soc_min"
-        self._attr_native_value = DEFAULT_SOC_MIN
+
+    @property
+    def native_value(self) -> float:
+        return float(self.coordinator.soc_min or DEFAULT_SOC_MIN)
 
     async def async_set_native_value(self, value: float) -> None:
-        self._attr_native_value = value
-        self.async_write_ha_state()
+        value = float(value)
+        # Sicherstellen: soc_min < soc_max
+        if self.coordinator.soc_max is not None and value >= self.coordinator.soc_max:
+            value = max(0.0, float(self.coordinator.soc_max) - 0.5)
+        await self._persist("soc_min", value)
 
 
-class ZendureSocMaxNumber(_BaseSocNumber):
-    _attr_name = "Zendure SoC Maximum"
+class ZendureSocMaxNumber(_BaseZendureNumber):
     _attr_icon = "mdi:battery-high"
+    _attr_name = "Zendure SoC Maximum"
 
-    def __init__(self, coordinator, entry: ConfigEntry):
+    def __init__(self, coordinator: ZendureSmartFlowCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
         self._attr_unique_id = f"{entry.entry_id}_soc_max"
-        self._attr_native_value = DEFAULT_SOC_MAX
+
+    @property
+    def native_value(self) -> float:
+        return float(self.coordinator.soc_max or DEFAULT_SOC_MAX)
 
     async def async_set_native_value(self, value: float) -> None:
-        self._attr_native_value = value
-        self.async_write_ha_state()
+        value = float(value)
+        # Sicherstellen: soc_max > soc_min
+        if self.coordinator.soc_min is not None and value <= self.coordinator.soc_min:
+            value = min(100.0, float(self.coordinator.soc_min) + 0.5)
+        await self._persist("soc_max", value)
