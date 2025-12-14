@@ -8,6 +8,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -187,10 +188,11 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return prices
 
     def _idx_now_15min(self) -> int:
-        # Export beginnt um 00:00. Index ab Mitternacht in 15-Minuten-Slots.
-        now = self.hass.config.time_zone  # nur um sicherzustellen, dass tz gesetzt ist
-        minutes = (self.hass.helpers.now().hour * 60) + self.hass.helpers.now().minute
+        # Export beginnt um 00:00 lokaler Zeit. Index ab Mitternacht in 15-Minuten-Slots.
+        now = dt_util.now()
+        minutes = (now.hour * 60) + now.minute
         return int(minutes // 15)
+
 
     def _find_first_peak_start(self, future: list[float], expensive: float) -> int | None:
         for i, p in enumerate(future):
