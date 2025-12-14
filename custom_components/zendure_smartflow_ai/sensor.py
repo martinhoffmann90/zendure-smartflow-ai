@@ -1,83 +1,75 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
-from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.components.sensor import SensorEntity
 
-from .const import DOMAIN
+from .constants import DOMAIN
 from .coordinator import ZendureSmartFlowCoordinator
 
 
-async def async_setup_entry(hass, entry, async_add_entities):
-    coordinator = hass.data[DOMAIN][entry.entry_id]
-
-    async_add_entities(
-        [
-            ZendureSmartFlowStatusSensor(coordinator, entry),
-            ZendureSmartFlowRecommendationSensor(coordinator, entry),
-            ZendureSmartFlowDebugSensor(coordinator, entry),
-        ]
-    )
+@dataclass(frozen=True)
+class _SensorSpec:
+    key: str
+    name: str
+    icon: str
 
 
-class _BaseZendureSensor(CoordinatorEntity[ZendureSmartFlowCoordinator], SensorEntity):
-    def __init__(self, coordinator: ZendureSmartFlowCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator)
-        self._entry = entry
+SENSORS = [
+    _SensorSpec("ai_status", "Zendure SmartFlow AI Status", "mdi:brain"),
+    _SensorSpec("recommendation", "Zendure Akku Steuerungsempfehlung", "mdi:auto-fix"),
+    _SensorSpec("debug", "Zendure SmartFlow AI Debug", "mdi:bug-outline"),
+]
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities) -> None:
+    coordinator: ZendureSmartFlowCoordinator = hass.data[DOMAIN][entry.entry_id]
+    async_add_entities([_ZendureSmartFlowSensor(coordinator, entry, spec) for spec in SENSORS])
+
+
+class _ZendureSmartFlowSensor(SensorEntity):
+    def __init__(self, coordinator: ZendureSmartFlowCoordinator, entry: ConfigEntry, spec: _SensorSpec) -> None:
+        self.coordinator = coordinator
+        self.entry = entry
+        self.spec = spec
+
+        self._attr_name = spec.name
+        self._attr_icon = spec.icon
+        self._attr_unique_id = f"{entry.entry_id}_{spec.key}"
+
+    @property
+    def available(self) -> bool:
+        return self.coordinator.last_update_success
+
+    @property
+    def native_value(self) -> str:
+        data = self.coordinator.data or {}
+        val = data.get(self.spec.key, "")
+        if val is None:
+            return ""
+        # Debug-State klein halten
+        if self.spec.key == "debug":
+            return str(val)[:255]
+        return str(val)[:255]
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        data = self.coordinator.data or {}
+        details = data.get("details", {}) or {}
+        return {
+            "details": details,
+            "ai_status": data.get("ai_status"),
+            "recommendation": data.get("recommendation"),
+            "price_now": data.get("price_now"),
+            "expensive_threshold": data.get("expensive_threshold"),
+        }
 
     @property
     def should_poll(self) -> bool:
         return False
 
-
-class ZendureSmartFlowStatusSensor(_BaseZendureSensor):
-    _attr_name = "Zendure SmartFlow AI Status"
-    _attr_icon = "mdi:robot"
-
-    def __init__(self, coordinator: ZendureSmartFlowCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_ai_status"
-
-    @property
-    def native_value(self) -> str:
-        return (self.coordinator.data or {}).get("ai_status", "unbekannt")
-
-
-class ZendureSmartFlowRecommendationSensor(_BaseZendureSensor):
-    _attr_name = "Zendure Akku Steuerungsempfehlung"
-    _attr_icon = "mdi:battery-sync"
-
-    def __init__(self, coordinator: ZendureSmartFlowCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_recommendation"
-
-    @property
-    def native_value(self) -> str:
-        return (self.coordinator.data or {}).get("recommendation", "standby")
-
-
-class ZendureSmartFlowDebugSensor(_BaseZendureSensor):
-    _attr_name = "Zendure SmartFlow AI Debug"
-    _attr_icon = "mdi:bug-outline"
-
-    def __init__(self, coordinator: ZendureSmartFlowCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_debug"
-
-    @property
-    def native_value(self) -> str:
-        # State kurz halten (max 255)
-        dbg = (self.coordinator.data or {}).get("debug", "OK")
-        return str(dbg)[:255]
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        data = self.coordinator.data or {}
-        return {
-            "ai_status": data.get("ai_status"),
-            "recommendation": data.get("recommendation"),
-            "details": data.get("details", {}),
-        }
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(self.coordinator.async_add_listener(self.async_write_ha_state))
