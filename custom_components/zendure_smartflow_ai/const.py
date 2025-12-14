@@ -1,5 +1,11 @@
 DOMAIN = "zendure_smartflow_ai"
 
+PLATFORMS = [
+    "sensor",
+    "number",     # ⬅️ DAS war der fehlende Punkt
+    "select",
+]
+
 DEVICE_MANUFACTURER = "Zendure"
 DEVICE_MODEL = "SmartFlow AI"
 DEVICE_NAME = "Zendure SmartFlow AI"
