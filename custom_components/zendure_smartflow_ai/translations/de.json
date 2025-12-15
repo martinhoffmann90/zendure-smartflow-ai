@@ -1,25 +1,53 @@
 {
   "title": "Zendure SmartFlow AI",
-  "state": {
-    "zendure_smartflow_ai": {
-      "ai_status": {
-        "datenproblem_preisquelle": "Datenproblem: Preisquelle nicht verfügbar",
-        "notladung_aktiv": "Notladung aktiv (Akkuschutz)",
-        "teuer_jetzt_akkuschutz": "Teuer jetzt: Akkuschutz (keine Entladung möglich)",
-        "teuer_jetzt_entladen": "Teuer jetzt: Entladen empfohlen",
-        "guenstig_jetzt_laden": "Günstig jetzt: Laden empfohlen",
-        "guenstige_phase_kommt_noch": "Günstige Phase kommt noch: warten",
-        "guenstigste_phase_verpasst": "Günstigste Phase verpasst: kein Blindladen",
-        "pv_ueberschuss_laden": "PV-Überschuss: Laden",
-        "standby": "Standby",
-        "manuell": "Manuell: Integration greift nicht ein"
+
+  "entity": {
+    "sensor": {
+      "zendure_smartflow_ai_status": {
+        "name": "SmartFlow AI Status",
+        "state": {
+          "standby": "Standby",
+          "pv_laden": "PV-Überschuss laden",
+          "günstig_laden": "Günstig laden",
+          "teuer_entladen": "Teuer – Entladen",
+          "notladung": "Notladung aktiv",
+          "manual_mode": "Manueller Modus"
+        }
       },
-      "recommendation": {
-        "standby": "Standby",
-        "laden": "Laden (PV)",
-        "billig_laden": "Not-/Billig-Laden",
-        "ki_laden": "KI-Laden",
-        "entladen": "Entladen"
+      "zendure_akku_steuerungsempfehlung": {
+        "name": "Akku Steuerungsempfehlung"
+      },
+      "zendure_smartflow_ai_debug": {
+        "name": "SmartFlow AI Debug"
+      }
+    },
+
+    "select": {
+      "zendure_betriebsmodus": {
+        "name": "Zendure Betriebsmodus",
+        "state": {
+          "automatic": "Automatik",
+          "summer": "Sommer",
+          "winter": "Winter",
+          "manual": "Manuell"
+        }
+      }
+    },
+
+    "number": {
+      "zendure_soc_min": {
+        "name": "SoC Minimum",
+        "description": "Unterhalb dieses SoC wird der Akku nicht mehr entladen."
+      },
+      "zendure_soc_max": {
+        "name": "SoC Maximum",
+        "description": "Maximaler Ziel-Ladezustand des Akkus."
+      },
+      "zendure_max_ladeleistung": {
+        "name": "Maximale Ladeleistung"
+      },
+      "zendure_max_entladeleistung": {
+        "name": "Maximale Entladeleistung"
       }
     }
   }
