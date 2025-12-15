@@ -17,6 +17,17 @@ MODES = [
 ]
 
 
+async def async_setup_entry(hass, entry: ConfigEntry, async_add_entities) -> None:
+    """Setup Betriebsmodus Select."""
+    coordinator: ZendureSmartFlowCoordinator = hass.data[DOMAIN][entry.entry_id]
+
+    async_add_entities(
+        [
+            ZendureBetriebsmodusSelect(coordinator, entry),
+        ]
+    )
+
+
 class ZendureBetriebsmodusSelect(
     CoordinatorEntity[ZendureSmartFlowCoordinator], SelectEntity
 ):
@@ -34,7 +45,7 @@ class ZendureBetriebsmodusSelect(
         self._attr_unique_id = f"{entry.entry_id}_betriebsmodus"
         self._attr_options = MODES
 
-        # 🔑 DAS WAR DER FEHLENDE TEIL
+        # 🔑 Feste Geräte-Zuordnung
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},
             name="Zendure SmartFlow AI",
@@ -48,7 +59,6 @@ class ZendureBetriebsmodusSelect(
         return state if state in MODES else "Automatik"
 
     async def async_select_option(self, option: str) -> None:
-        # Modus wird DIREKT gesetzt (kein Flackern)
         await self.coordinator.hass.services.async_call(
             "select",
             "select_option",
@@ -59,5 +69,4 @@ class ZendureBetriebsmodusSelect(
             blocking=False,
         )
 
-        # Coordinator neu triggern
         await self.coordinator.async_request_refresh()
