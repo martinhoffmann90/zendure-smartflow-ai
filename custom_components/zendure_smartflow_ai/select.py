@@ -3,27 +3,44 @@ from __future__ import annotations
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers.entity import DeviceInfo
 
-from .coordinator import ZendureSmartFlowCoordinator
 from .const import DOMAIN
+from .coordinator import ZendureSmartFlowCoordinator
 
 
-MODES = ["Automatik", "Sommer", "Winter", "Manuell"]
+MODES = [
+    "Automatik",
+    "Sommer",
+    "Winter",
+    "Manuell",
+]
 
 
-async def async_setup_entry(hass, entry: ConfigEntry, async_add_entities):
-    coordinator: ZendureSmartFlowCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([ZendureBetriebsmodusSelect(coordinator, entry)])
-
-
-class ZendureBetriebsmodusSelect(CoordinatorEntity, SelectEntity):
+class ZendureBetriebsmodusSelect(
+    CoordinatorEntity[ZendureSmartFlowCoordinator], SelectEntity
+):
     _attr_name = "Zendure Betriebsmodus"
-    _attr_icon = "mdi:cog-outline"
-    _attr_options = MODES
+    _attr_icon = "mdi:cog-sync"
 
-    def __init__(self, coordinator: ZendureSmartFlowCoordinator, entry: ConfigEntry):
+    def __init__(
+        self,
+        coordinator: ZendureSmartFlowCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
         super().__init__(coordinator)
-        self._attr_unique_id = f"{entry.entry_id}_mode"
+        self._entry = entry
+
+        self._attr_unique_id = f"{entry.entry_id}_betriebsmodus"
+        self._attr_options = MODES
+
+        # 🔑 DAS WAR DER FEHLENDE TEIL
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name="Zendure SmartFlow AI",
+            manufacturer="Zendure",
+            model="SmartFlow AI",
+        )
 
     @property
     def current_option(self) -> str:
@@ -31,6 +48,7 @@ class ZendureBetriebsmodusSelect(CoordinatorEntity, SelectEntity):
         return state if state in MODES else "Automatik"
 
     async def async_select_option(self, option: str) -> None:
+        # Modus wird DIREKT gesetzt (kein Flackern)
         await self.coordinator.hass.services.async_call(
             "select",
             "select_option",
@@ -40,3 +58,6 @@ class ZendureBetriebsmodusSelect(CoordinatorEntity, SelectEntity):
             },
             blocking=False,
         )
+
+        # Coordinator neu triggern
+        await self.coordinator.async_request_refresh()
