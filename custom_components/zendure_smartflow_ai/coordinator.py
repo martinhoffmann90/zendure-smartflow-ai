@@ -15,6 +15,9 @@ _LOGGER = logging.getLogger(__name__)
 UPDATE_INTERVAL = 10          # Sekunden
 FREEZE_SECONDS = 120          # Recommendation-Freeze
 
+# Sicherheits-Grenze: Notladung nur bei "wirklich leer"
+EMERGENCY_SOC_CAP = 20.0      # Notladung nur, wenn SoC < 20%
+
 
 # =========================
 # Entity IDs
@@ -67,6 +70,12 @@ def _f(state: str | None, default: float = 0.0) -> float:
         return default
 
 
+def _changed(prev: float | None, new: float, tol: float) -> bool:
+    if prev is None:
+        return True
+    return abs(prev - new) > tol
+
+
 # =========================
 # Coordinator
 # =========================
@@ -80,8 +89,16 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         # Freeze
         self._freeze_until: datetime | None = None
-        self._last_recommendation: str | None = None
         self._last_ai_status: str | None = None
+        self._last_recommendation: str | None = None
+        self._last_cmd_mode: str | None = None
+        self._last_cmd_in: float | None = None
+        self._last_cmd_out: float | None = None
+
+        # Anti-Flattern / Service-Spam
+        self._last_set_mode: str | None = None
+        self._last_set_in: float | None = None
+        self._last_set_out: float | None = None
 
         super().__init__(
             hass,
@@ -109,7 +126,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         await self.hass.services.async_call(
             "number",
             "set_value",
-            {"entity_id": self.entities.input_limit, "value": round(watts, 0)},
+            {"entity_id": self.entities.input_limit, "value": float(round(watts, 0))},
             blocking=False,
         )
 
@@ -117,9 +134,28 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         await self.hass.services.async_call(
             "number",
             "set_value",
-            {"entity_id": self.entities.output_limit, "value": round(watts, 0)},
+            {"entity_id": self.entities.output_limit, "value": float(round(watts, 0))},
             blocking=False,
         )
+
+    async def _apply_hw(self, mode: str, in_w: float, out_w: float) -> None:
+        """
+        Setzt Hardware nur, wenn sich etwas wirklich geändert hat.
+        Das verhindert Flackern + Service-Spam.
+        """
+        # Mode nur bei Änderung
+        if mode != self._last_set_mode:
+            await self._set_ac_mode(mode)
+            self._last_set_mode = mode
+
+        # Input/Output mit Toleranz (W)
+        if _changed(self._last_set_in, in_w, tol=25.0):
+            await self._set_input(in_w)
+            self._last_set_in = in_w
+
+        if _changed(self._last_set_out, out_w, tol=25.0):
+            await self._set_output(out_w)
+            self._last_set_out = out_w
 
     # =========================
     # Main update
@@ -134,18 +170,21 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             load = _f(self._state(self.entities.load))
             price_now = _f(self._state(self.entities.price_now))
 
-            soc_min = _f(self._state(self.entities.soc_min), 12)
-            soc_max = _f(self._state(self.entities.soc_max), 95)
+            soc_min = _f(self._state(self.entities.soc_min), 12.0)
+            soc_max = _f(self._state(self.entities.soc_max), 95.0)
 
             expensive = _f(self._state(self.entities.expensive_threshold), 0.35)
 
-            max_charge = _f(self._state(self.entities.max_charge), 2000)
-            max_discharge = _f(self._state(self.entities.max_discharge), 700)
+            max_charge = _f(self._state(self.entities.max_charge), 2000.0)
+            max_discharge = _f(self._state(self.entities.max_discharge), 700.0)
 
-            surplus = max(pv - load, 0)
+            surplus = max(pv - load, 0.0)
 
             # --- Grenzen ---
-            soc_notfall = max(soc_min - 4, 5)
+            soc_notfall = max(soc_min - 4.0, 5.0)
+
+            # ✅ Notladung NUR wenn wirklich leer (sonst passiert genau dein Fehler bei hohen soc_min)
+            is_real_emergency = (soc <= soc_notfall) and (soc < EMERGENCY_SOC_CAP)
 
             # =========================
             # Entscheidungslogik
@@ -153,52 +192,67 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ai_status = "standby"
             recommendation = "standby"
 
-            ac_mode = "input"
-            in_w = 0.0
-            out_w = 0.0
+            # Hardware-Command
+            cmd_mode = "input"
+            cmd_in = 0.0
+            cmd_out = 0.0
 
-            # 1️⃣ NOTFALL (nur wenn NICHT teuer!)
-            if soc <= soc_notfall and price_now < expensive:
+            # 1️⃣ NOTFALL (nur wenn NICHT teuer + wirklich leer)
+            if is_real_emergency and price_now < expensive and soc < soc_max:
                 ai_status = "notladung"
                 recommendation = "billig_laden"
-                ac_mode = "input"
-                in_w = min(max_charge, 300)
-                out_w = 0
+                cmd_mode = "input"
+                cmd_in = min(max_charge, 300.0)
+                cmd_out = 0.0
 
-            # 2️⃣ TEUER → ENTLADE
+            # 2️⃣ TEUER → ENTLADE (wenn über Reserve)
             elif price_now >= expensive and soc > soc_min:
                 ai_status = "teuer_jetzt"
                 recommendation = "entladen"
-                ac_mode = "output"
-                need = max(load - pv, 0)
-                out_w = min(max_discharge, need)
-                in_w = 0
+                cmd_mode = "output"
+                need = max(load - pv, 0.0)
+                cmd_out = min(max_discharge, need)
+                cmd_in = 0.0
 
-            # 3️⃣ PV-Überschuss
-            elif surplus > 80 and soc < soc_max:
+            # 3️⃣ PV-Überschuss → laden (wenn nicht voll)
+            elif surplus > 80.0 and soc < soc_max:
                 ai_status = "pv_laden"
                 recommendation = "laden"
-                ac_mode = "input"
-                in_w = min(max_charge, surplus)
-                out_w = 0
+                cmd_mode = "input"
+                cmd_in = min(max_charge, surplus)
+                cmd_out = 0.0
+
+            # 4️⃣ Standby → alles 0 (Mode lassen wir auf input, damit nix entlädt)
+            else:
+                ai_status = "standby"
+                recommendation = "standby"
+                cmd_mode = "input"
+                cmd_in = 0.0
+                cmd_out = 0.0
 
             # =========================
-            # Recommendation Freeze
+            # Recommendation Freeze (inkl. Hardware-Command!)
             # =========================
+            frozen = False
             if self._freeze_until and now < self._freeze_until:
+                frozen = True
                 ai_status = self._last_ai_status or ai_status
                 recommendation = self._last_recommendation or recommendation
+                cmd_mode = self._last_cmd_mode or cmd_mode
+                cmd_in = self._last_cmd_in if self._last_cmd_in is not None else cmd_in
+                cmd_out = self._last_cmd_out if self._last_cmd_out is not None else cmd_out
             else:
                 self._freeze_until = now + timedelta(seconds=FREEZE_SECONDS)
                 self._last_ai_status = ai_status
                 self._last_recommendation = recommendation
+                self._last_cmd_mode = cmd_mode
+                self._last_cmd_in = cmd_in
+                self._last_cmd_out = cmd_out
 
             # =========================
             # Hardware anwenden
             # =========================
-            await self._set_ac_mode(ac_mode)
-            await self._set_input(in_w)
-            await self._set_output(out_w)
+            await self._apply_hw(cmd_mode, cmd_in, cmd_out)
 
             return {
                 "ai_status": ai_status,
@@ -207,15 +261,22 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "details": {
                     "price_now": price_now,
                     "expensive_threshold": expensive,
+
                     "soc": soc,
                     "soc_min": soc_min,
                     "soc_max": soc_max,
+                    "soc_notfall": soc_notfall,
+                    "is_real_emergency": is_real_emergency,
+
                     "pv": pv,
                     "load": load,
                     "surplus": surplus,
-                    "set_mode": ac_mode,
-                    "set_input_w": round(in_w, 0),
-                    "set_output_w": round(out_w, 0),
+
+                    "set_mode": cmd_mode,
+                    "set_input_w": round(cmd_in, 0),
+                    "set_output_w": round(cmd_out, 0),
+
+                    "frozen": frozen,
                     "freeze_until": self._freeze_until.isoformat() if self._freeze_until else None,
                 },
             }
