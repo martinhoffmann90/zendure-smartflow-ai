@@ -16,15 +16,15 @@ UPDATE_INTERVAL = 10        # Sekunden
 FREEZE_SECONDS = 120        # Recommendation-Freeze
 
 
-# ==========================================================
+# ======================================================
 # Entity IDs (werden über Config-Flow gesetzt)
-# ==========================================================
+# ======================================================
 @dataclass
 class EntityIds:
     soc: str
     pv: str
     load: str
-    price_now: str
+    price_export: str
 
     soc_min: str
     soc_max: str
@@ -37,9 +37,9 @@ class EntityIds:
     output_limit: str
 
 
-# ==========================================================
+# ======================================================
 # Helper
-# ==========================================================
+# ======================================================
 def _to_float(value: Any, default: float = 0.0) -> float:
     try:
         if value is None:
@@ -49,9 +49,9 @@ def _to_float(value: Any, default: float = 0.0) -> float:
         return default
 
 
-# ==========================================================
+# ======================================================
 # Coordinator
-# ==========================================================
+# ======================================================
 class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -61,11 +61,21 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         data = entry.data
 
+        # 🔧 Abwärtskompatibel (alte + neue Config-Flows)
+        price_export = (
+            data.get("price_export_entity")
+            or data.get("price_entity")
+            or data.get("price_now_entity")
+        )
+
+        if not price_export:
+            raise ValueError("No price export entity configured")
+
         self.entities = EntityIds(
             soc=data["soc_entity"],
             pv=data["pv_entity"],
             load=data["load_entity"],
-            price_now=data["price_entity"],
+            price_export=price_export,
 
             soc_min=data["soc_min_entity"],
             soc_max=data["soc_max_entity"],
@@ -78,7 +88,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             output_limit=data["output_limit_entity"],
         )
 
-        # Freeze
+        # Recommendation-Freeze
         self._freeze_until: datetime | None = None
         self._last_recommendation: str | None = None
         self._last_ai_status: str | None = None
@@ -90,9 +100,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=timedelta(seconds=UPDATE_INTERVAL),
         )
 
-    # ------------------------------------------------------
-    # State helpers
-    # ------------------------------------------------------
+    # --------------------------------------------------
+    # State helper
+    # --------------------------------------------------
     def _state(self, entity_id: str) -> Any:
         st = self.hass.states.get(entity_id)
         return None if st is None else st.state
@@ -101,25 +111,25 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         st = self.hass.states.get(entity_id)
         return None if st is None else st.attributes.get(attr)
 
-    # ------------------------------------------------------
-    # Preis aus Diagramm-Datenexport (Fallback)
-    # ------------------------------------------------------
-    def _price_now_from_export(self) -> float | None:
-        data = self._attr(self.entities.price_now, "data")
-        if not data:
+    # --------------------------------------------------
+    # Preis aus Diagramm-Datenexport (15-Min Slots)
+    # --------------------------------------------------
+    def _get_price_now(self) -> float | None:
+        data = self._attr(self.entities.price_export, "data")
+        if not isinstance(data, list):
             return None
 
         now = dt_util.now()
         idx = (now.hour * 60 + now.minute) // 15
 
         try:
-            return float(data[idx]["price_per_kwh"])
+            return _to_float(data[idx]["price_per_kwh"])
         except Exception:
             return None
 
-    # ------------------------------------------------------
+    # --------------------------------------------------
     # Hardware-Steuerung
-    # ------------------------------------------------------
+    # --------------------------------------------------
     async def _set_ac_mode(self, mode: str) -> None:
         await self.hass.services.async_call(
             "select",
@@ -128,7 +138,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             blocking=False,
         )
 
-    async def _set_input(self, watts: float) -> None:
+    async def _set_input_limit(self, watts: float) -> None:
         await self.hass.services.async_call(
             "number",
             "set_value",
@@ -136,7 +146,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             blocking=False,
         )
 
-    async def _set_output(self, watts: float) -> None:
+    async def _set_output_limit(self, watts: float) -> None:
         await self.hass.services.async_call(
             "number",
             "set_value",
@@ -144,79 +154,60 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             blocking=False,
         )
 
-    # ======================================================
-    # MAIN UPDATE
-    # ======================================================
+    # ==================================================
+    # Main Update
+    # ==================================================
     async def _async_update_data(self) -> dict[str, Any]:
         try:
             now = dt_util.utcnow()
 
-            # -----------------------------
-            # Basiswerte
-            # -----------------------------
+            # --- Basiswerte ---
             soc = _to_float(self._state(self.entities.soc))
             pv = _to_float(self._state(self.entities.pv))
             load = _to_float(self._state(self.entities.load))
 
-            # Preis: zuerst State, sonst Export
-            price_now = _to_float(self._state(self.entities.price_now), -1)
-            price_source = "state"
-
-            if price_now <= 0:
-                export_price = self._price_now_from_export()
-                if export_price is not None:
-                    price_now = export_price
-                    price_source = "export"
-
-            # Schutz: ohne gültigen Preis NICHT steuern
-            if price_now <= 0:
+            price_now = self._get_price_now()
+            if price_now is None:
                 return {
-                    "ai_status": "standby",
+                    "ai_status": "price_invalid",
                     "recommendation": "standby",
                     "debug": "PRICE_INVALID",
-                    "details": {
-                        "price_now": price_now,
-                        "price_source": price_source,
-                    },
                 }
 
-            soc_min = _to_float(self._state(self.entities.soc_min), 12)
-            soc_max = _to_float(self._state(self.entities.soc_max), 95)
+            soc_min = _to_float(self._state(self.entities.soc_min), 12.0)
+            soc_max = _to_float(self._state(self.entities.soc_max), 95.0)
+            expensive = _to_float(self._state(self.entities.expensive_threshold), 0.35)
 
-            expensive_threshold = _to_float(
-                self._state(self.entities.expensive_threshold), 0.35
-            )
+            max_charge = _to_float(self._state(self.entities.max_charge), 2000.0)
+            max_discharge = _to_float(self._state(self.entities.max_discharge), 700.0)
 
-            max_charge = _to_float(self._state(self.entities.max_charge), 2000)
-            max_discharge = _to_float(self._state(self.entities.max_discharge), 700)
+            surplus = max(pv - load, 0.0)
+            soc_notfall = max(soc_min - 4.0, 5.0)
 
-            surplus = max(pv - load, 0)
-            soc_notfall = max(soc_min - 4, 5)
-
-            # -----------------------------
-            # Entscheidungslogik
-            # -----------------------------
+            # ==================================================
+            # Entscheidungslogik (KLAR priorisiert!)
+            # ==================================================
             ai_status = "standby"
             recommendation = "standby"
-
             ac_mode = "input"
             in_w = 0.0
             out_w = 0.0
 
-            # 1️⃣ TEUER → ENTLADE (hat Vorrang!)
-            if price_now >= expensive_threshold and soc > soc_min:
+            # 1️⃣ TEUER → ENTLADE (höchste Priorität!)
+            if price_now >= expensive and soc > soc_min:
                 ai_status = "teuer_jetzt"
                 recommendation = "entladen"
                 ac_mode = "output"
-                need = max(load - pv, 0)
-                out_w = min(max_discharge, need)
+                out_w = min(max_discharge, max(load - pv, 0))
+                in_w = 0.0
 
-            # 2️⃣ NOTFALL (nur wenn NICHT teuer)
+            # 2️⃣ NOTFALL → NUR wenn NICHT teuer
             elif soc <= soc_notfall:
                 ai_status = "notladung"
                 recommendation = "billig_laden"
                 ac_mode = "input"
-                in_w = min(max_charge, 300)
+                in_w = min(max_charge, 300.0)
+                out_w = 0.0
 
             # 3️⃣ PV-Überschuss
             elif surplus > 80 and soc < soc_max:
@@ -224,10 +215,11 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 recommendation = "laden"
                 ac_mode = "input"
                 in_w = min(max_charge, surplus)
+                out_w = 0.0
 
-            # -----------------------------
+            # ==================================================
             # Recommendation-Freeze
-            # -----------------------------
+            # ==================================================
             if self._freeze_until and now < self._freeze_until:
                 ai_status = self._last_ai_status or ai_status
                 recommendation = self._last_recommendation or recommendation
@@ -236,24 +228,20 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._last_ai_status = ai_status
                 self._last_recommendation = recommendation
 
-            # -----------------------------
+            # ==================================================
             # Hardware anwenden
-            # -----------------------------
+            # ==================================================
             await self._set_ac_mode(ac_mode)
-            await self._set_input(in_w)
-            await self._set_output(out_w)
+            await self._set_input_limit(in_w)
+            await self._set_output_limit(out_w)
 
-            # -----------------------------
-            # Rückgabe
-            # -----------------------------
             return {
                 "ai_status": ai_status,
                 "recommendation": recommendation,
                 "debug": "OK",
                 "details": {
-                    "price_now": round(price_now, 4),
-                    "price_source": price_source,
-                    "expensive_threshold": expensive_threshold,
+                    "price_now": price_now,
+                    "expensive_threshold": expensive,
                     "soc": soc,
                     "soc_min": soc_min,
                     "soc_max": soc_max,
@@ -263,9 +251,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "set_mode": ac_mode,
                     "set_input_w": round(in_w, 0),
                     "set_output_w": round(out_w, 0),
-                    "freeze_until": self._freeze_until.isoformat()
-                    if self._freeze_until
-                    else None,
+                    "freeze_until": self._freeze_until.isoformat() if self._freeze_until else None,
                 },
             }
 
