@@ -13,18 +13,11 @@ from .const import *
 def _find_first_entity(
     hass: HomeAssistant,
     domain: str,
-    device_class: str | None = None,
-    unit: str | None = None,
 ):
     reg = er.async_get(hass)
     for ent in reg.entities.values():
-        if ent.domain != domain:
-            continue
-        if device_class and ent.device_class != device_class:
-            continue
-        if unit and ent.unit_of_measurement != unit:
-            continue
-        return ent.entity_id
+        if ent.domain == domain:
+            return ent.entity_id
     return None
 
 
@@ -42,47 +35,71 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         hass = self.hass
 
-        # Intelligente Vorschläge
-        soc_guess = _find_first_entity(hass, "sensor", "battery", "%")
-        pv_guess = _find_first_entity(hass, "sensor", "power", "W")
-        load_guess = _find_first_entity(hass, "sensor", "power", "W")
-        price_guess = _find_first_entity(hass, "sensor", None, "€/kWh")
+        # sinnvolle Vorschläge (nur grob!)
+        soc_guess = _find_first_entity(hass, "sensor")
+        pv_guess = _find_first_entity(hass, "sensor")
+        load_guess = _find_first_entity(hass, "sensor")
+        price_export_guess = _find_first_entity(hass, "sensor")
 
         schema = vol.Schema(
             {
-                vol.Required(CONF_SOC_ENTITY, default=soc_guess): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Required(CONF_PV_ENTITY, default=pv_guess): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Required(CONF_LOAD_ENTITY, default=load_guess): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Optional(CONF_PRICE_NOW_ENTITY, default=price_guess): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Required(CONF_AC_MODE_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="select")
-                ),
-                vol.Required(CONF_GRID_MODE, default=GRID_MODE_SINGLE): selector.SelectSelector(
-                    selector.SelectSelectorConfig(
-                        options=[
-                            {"value": GRID_MODE_SINGLE, "label": "Ein Sensor (+ Bezug / – Einspeisung)"},
-                            {"value": GRID_MODE_SPLIT, "label": "Zwei Sensoren (Bezug und Einspeisung getrennt)"},
-                        ],
-                        mode=selector.SelectSelectorMode.DROPDOWN,
-                    )
-                ),
-                vol.Optional(CONF_GRID_POWER_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Optional(CONF_GRID_IMPORT_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Optional(CONF_GRID_EXPORT_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
+                vol.Required(CONF_SOC_ENTITY, default=soc_guess):
+                    selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="sensor")
+                    ),
+
+                vol.Required(CONF_PV_ENTITY, default=pv_guess):
+                    selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="sensor")
+                    ),
+
+                vol.Required(CONF_LOAD_ENTITY, default=load_guess):
+                    selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="sensor")
+                    ),
+
+                # 🔥 WICHTIG: Tibber Diagramm-Datenexport
+                vol.Required(CONF_PRICE_EXPORT_ENTITY, default=price_export_guess):
+                    selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="sensor")
+                    ),
+
+                vol.Required(CONF_AC_MODE_ENTITY):
+                    selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="select")
+                    ),
+
+                vol.Required(CONF_GRID_MODE, default=GRID_MODE_SINGLE):
+                    selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[
+                                {
+                                    "value": GRID_MODE_SINGLE,
+                                    "label": "Ein Sensor (Bezug + / Einspeisung −)"
+                                },
+                                {
+                                    "value": GRID_MODE_SPLIT,
+                                    "label": "Zwei Sensoren (Bezug und Einspeisung getrennt)"
+                                },
+                            ],
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
+
+                vol.Optional(CONF_GRID_POWER_ENTITY):
+                    selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="sensor")
+                    ),
+
+                vol.Optional(CONF_GRID_IMPORT_ENTITY):
+                    selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="sensor")
+                    ),
+
+                vol.Optional(CONF_GRID_EXPORT_ENTITY):
+                    selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="sensor")
+                    ),
             }
         )
 
