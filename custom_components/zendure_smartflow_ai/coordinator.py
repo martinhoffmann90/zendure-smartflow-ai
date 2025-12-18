@@ -25,16 +25,16 @@ class EntityIds:
     soc: str
     pv: str
     load: str
-    price_export: str  # Tibber-Datenexport (attributes.data)
+    price_export: str  # Tibber Diagramm-Datenexport
 
-    # Parameter / Regler (von der Integration bereitgestellt)
+    # Parameter / Regler (Integration)
     soc_min: str
     soc_max: str
     expensive_threshold: str
     max_charge: str
     max_discharge: str
 
-    # Zendure Steuer-Entitäten
+    # Zendure SolarFlow AC
     ac_mode: str
     input_limit: str
     output_limit: str
@@ -45,13 +45,11 @@ DEFAULT_ENTITY_IDS = EntityIds(
     pv="sensor.sb2_5_1vl_40_401_pv_power",
     load="sensor.gesamtverbrauch",
     price_export="sensor.paul_schneider_strasse_39_diagramm_datenexport",
-
     soc_min="number.zendure_soc_min",
     soc_max="number.zendure_soc_max",
     expensive_threshold="number.zendure_teuer_schwelle",
     max_charge="number.zendure_max_ladeleistung",
     max_discharge="number.zendure_max_entladeleistung",
-
     ac_mode="select.solarflow_2400_ac_ac_mode",
     input_limit="number.solarflow_2400_ac_input_limit",
     output_limit="number.solarflow_2400_ac_output_limit",
@@ -78,14 +76,16 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.hass = hass
         self.entry = entry
+        self.entry_id = entry.entry_id
 
         data = entry.data or {}
 
-        def pick(*keys: str, default: str) -> str:
+        def pick(*keys: str, default: str | None = None) -> str:
             for k in keys:
-                if k in data and data[k]:
-                    return data[k]
-            return default
+                v = data.get(k)
+                if v:
+                    return v
+            return default or ""
 
         self.entities = EntityIds(
             soc=pick("soc_entity", default=DEFAULT_ENTITY_IDS.soc),
@@ -110,7 +110,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             output_limit=pick("output_limit_entity", default=DEFAULT_ENTITY_IDS.output_limit),
         )
 
-        # Recommendation-Freeze
+        # Recommendation Freeze
         self._freeze_until: datetime | None = None
         self._last_ai_status: str | None = None
         self._last_recommendation: str | None = None
@@ -123,7 +123,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
 
     # --------------------------------------------------
-    # State / Attr
+    # Helpers
     # --------------------------------------------------
     def _state(self, entity_id: str) -> Any:
         st = self.hass.states.get(entity_id)
@@ -134,18 +134,18 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return None if st is None else st.attributes.get(attr)
 
     # --------------------------------------------------
-    # Preis aus Tibber-Datenexport (15-Min Slots)
+    # Preis aus Tibber-Datenexport
     # --------------------------------------------------
     def _get_price_now(self) -> float | None:
-        data = self._attr(self.entities.price_export, "data")
-        if not isinstance(data, list) or not data:
+        export = self._attr(self.entities.price_export, "data")
+        if not isinstance(export, list) or not export:
             return None
 
         now = dt_util.now()
         idx = int((now.hour * 60 + now.minute) // 15)
 
         try:
-            return _to_float(data[idx].get("price_per_kwh"), None)
+            return _to_float(export[idx].get("price_per_kwh"), None)
         except Exception:
             return None
 
@@ -196,7 +196,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 }
 
             soc_min = _to_float(self._state(self.entities.soc_min), 12.0)
-            soc_max = _to_float(self._state(self.entities.soc_max), 100.0)
+            soc_max = _to_float(self._state(self.entities.soc_max), 95.0)
             expensive = _to_float(self._state(self.entities.expensive_threshold), 0.35)
             max_charge = _to_float(self._state(self.entities.max_charge), 2000.0)
             max_discharge = _to_float(self._state(self.entities.max_discharge), 700.0)
@@ -204,25 +204,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             surplus = max(pv - load, 0.0)
             soc_notfall = max(soc_min - 4.0, 5.0)
 
-            # ==================================================
-            # MANUELLER MODUS → NICHT ÜBERSCHREIBEN
-            # ==================================================
-            ac_mode_current = str(self._state(self.entities.ac_mode) or "").lower()
-            if ac_mode_current in ("input", "output"):
-                return {
-                    "ai_status": "manuell",
-                    "recommendation": "standby",
-                    "debug": "MANUAL_MODE_ACTIVE",
-                    "details": {
-                        "ac_mode_current": ac_mode_current,
-                        "soc": soc,
-                        "price_now": price_now,
-                    },
-                }
-
-            # ==================================================
-            # Entscheidungslogik (AUTO)
-            # ==================================================
             ai_status = "standby"
             recommendation = "standby"
             ac_mode = "input"
@@ -236,23 +217,21 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 ac_mode = "output"
                 out_w = min(max_discharge, max(load - pv, 0.0))
 
-            # 2️⃣ NOTLADUNG
+            # 2️⃣ NOTFALL → LADEN (nur wenn NICHT teuer)
             elif soc <= soc_notfall:
                 ai_status = "notladung"
                 recommendation = "billig_laden"
                 ac_mode = "input"
                 in_w = min(max_charge, 300.0)
 
-            # 3️⃣ PV-Überschuss
+            # 3️⃣ PV-ÜBERSCHUSS
             elif surplus > 80 and soc < soc_max:
                 ai_status = "pv_laden"
                 recommendation = "laden"
                 ac_mode = "input"
                 in_w = min(max_charge, surplus)
 
-            # ==================================================
-            # Recommendation-Freeze (nur Anzeige)
-            # ==================================================
+            # Freeze (nur Anzeige!)
             if self._freeze_until and now < self._freeze_until:
                 ai_status = self._last_ai_status or ai_status
                 recommendation = self._last_recommendation or recommendation
@@ -261,9 +240,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._last_ai_status = ai_status
                 self._last_recommendation = recommendation
 
-            # ==================================================
             # Hardware anwenden
-            # ==================================================
             await self._set_ac_mode(ac_mode)
             await self._set_input_limit(in_w)
             await self._set_output_limit(out_w)
@@ -271,7 +248,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return {
                 "ai_status": ai_status,
                 "recommendation": recommendation,
-                "debug": "AUTO",
+                "debug": "OK",
                 "details": {
                     "price_now": price_now,
                     "soc": soc,
