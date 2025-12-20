@@ -47,18 +47,20 @@ GRID_MODE_SINGLE = "single"
 GRID_MODE_SPLIT = "split"
 
 # =====================================================
-# Interne SETTINGS
-# (werden von number.py / select.py genutzt)
+# Interne SETTINGS (werden von number.py / select.py genutzt)
 # =====================================================
 
 SETTING_SOC_MIN = "soc_min"
 SETTING_SOC_MAX = "soc_max"
 
+# "teuer-Schwelle"
 SETTING_EXPENSIVE_THRESHOLD = "expensive_threshold"
+# Backwards-Compatibility: ältere/andere Dateien erwarten diesen Namen
+SETTING_PRICE_THRESHOLD = SETTING_EXPENSIVE_THRESHOLD  # Alias
 
-# ⚠️ Diese Namen sind absichtlich so gewählt,
-# damit number.py NICHT geändert werden muss
+# Lade/Entlade-Limits
 SETTING_MAX_CHARGE = "max_charge"
 SETTING_MAX_DISCHARGE = "max_discharge"
 
-SETTING_OPERATION_MODE = "operation_mode"  # auto / summer / winter / manual
+# Betriebsmodus der Integration (auto / summer / winter / manual)
+SETTING_OPERATION_MODE = "operation_mode"
