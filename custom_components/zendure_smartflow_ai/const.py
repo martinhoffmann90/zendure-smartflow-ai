@@ -54,7 +54,12 @@ SETTING_PRICE_THRESHOLD = "price_threshold"
 # Defaults
 # ==================================================
 DEFAULT_SOC_MIN = 12.0
-DEFAULT_SOC_MAX = 100.0   # Hersteller-Empfehlung ✔
+DEFAULT_SOC_MAX = 100.0      # Herstellerempfehlung ✔
 DEFAULT_MAX_CHARGE = 2000.0
 DEFAULT_MAX_DISCHARGE = 700.0
 DEFAULT_PRICE_THRESHOLD = 0.35
+
+# ==================================================
+# Backward compatibility (Alias)
+# ==================================================
+DEFAULT_EXPENSIVE_THRESHOLD = DEFAULT_PRICE_THRESHOLD
