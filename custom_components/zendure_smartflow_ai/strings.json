@@ -1,0 +1,10 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Zendure SmartFlow AI",
+        "description": "Select required entities. The integration will create its own controls (mode + limits) without external helpers."
+      }
+    }
+  }
+}
