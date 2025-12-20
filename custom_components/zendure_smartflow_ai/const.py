@@ -31,6 +31,23 @@ CONF_INPUT_LIMIT_ENTITY = "input_limit_entity"
 CONF_OUTPUT_LIMIT_ENTITY = "output_limit_entity"
 
 # ==================================================
+# AI Operation Modes
+# ==================================================
+AI_MODE_AUTOMATIC = "automatic"
+AI_MODE_SUMMER = "summer"
+AI_MODE_WINTER = "winter"
+AI_MODE_MANUAL = "manual"
+
+AI_MODES = [
+    AI_MODE_AUTOMATIC,
+    AI_MODE_SUMMER,
+    AI_MODE_WINTER,
+    AI_MODE_MANUAL,
+]
+
+DEFAULT_AI_MODE = AI_MODE_AUTOMATIC
+
+# ==================================================
 # Grid / Hausanschluss
 # ==================================================
 CONF_GRID_MODE = "grid_mode"
