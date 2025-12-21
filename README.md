@@ -1,39 +1,125 @@
 # Zendure SmartFlow AI
 
-**Version 0.1.0 – Early Preview**
-
-Zendure SmartFlow AI ist eine intelligente Steuerungs-Integration für Home Assistant, die
-den Zendure SolarFlow AC (SF2400/SF3000) mit dynamischer Tibber-Preisprognose verbindet
-und optimierte Lade- und Entladeentscheidungen trifft.
-
-### Funktionen
-- KI-Analyse der nächsten 48h Strompreise (Tibber Export)
-- Erkennung von Peak-Phasen / teuersten Zeitblöcken
-- Ermittlung der günstigsten Ladezeit vor Peak
-- Mehrsprachige Statusmeldungen (de/en)
-- Übergabe der Empfehlung an Home-Assistant Automationen
-
-### Installation
-1. Repository clonen oder als ZIP herunterladen  
-2. Ordner `custom_components/zendure_smartflow_ai` in Home Assistant kopieren  
-3. Home Assistant neu starten  
-4. Integration erscheint in *Einstellungen → Geräte & Dienste → Integration hinzufügen*
-
-### TODO – geplanter Ausbau
-- Offizielle HACS-Einreichung  
-- Config-Flow  
-- UI-Konfiguration  
-- Historische Analyse  
-- Automatische Zendure-API-Anbindung  
+Eine intelligente Home-Assistant-Integration zur **automatischen Steuerung von Zendure SolarFlow (AC)**  
+– optimiert für **Autarkie**, **PV-Überschuss** und **Strompreis-Spitzen**.
 
 ---
 
-# 📄 **LICENSE (MIT)**
+## ✨ Funktionen
 
-```text
-MIT License
+- 🔋 Intelligente Batterie-Steuerung
+- ☀️ PV-Überschuss laden
+- 🌙 Abends & nachts dynamisch entladen
+- 💸 Peak-Shaving bei hohen Strompreisen
+- 🧠 Mehrere AI-Modi direkt in der Integration
+- 🚫 **Keine externen Helper notwendig**
+- 🔧 Volle Kontrolle über Lade-/Entladegrenzen
 
-Copyright (c) 2025
+---
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-...
+## 🧠 AI-Modi
+
+### 🔄 Automatik
+- Wählt automatisch zwischen **Sommer** und **Winter**
+- Sommer: April – September  
+- Winter: Oktober – März
+
+---
+
+### ☀️ Sommer
+Ziel: **Maximale Autarkie**
+- PV-Überschuss → Akku laden
+- Abends / nachts → Akku entlädt dynamisch nach Hausverbrauch
+- Schutz vor Tiefentladung
+
+---
+
+### ❄️ Winter
+Ziel: **Kosten senken**
+- Entladung bei **hohen Strompreisen**
+- PV-Überschuss wird weiterhin geladen
+- Peak-Shaving bei Netzbezug
+
+---
+
+### ✋ Manuell
+- **AI greift nicht ein**
+- Zendure kann komplett manuell oder per anderer Automation gesteuert werden
+
+---
+
+## 🧩 Entitäten
+
+### Select
+- **Zendure SmartFlow AI – Moduswahl**
+
+### Number
+- SoC Minimum
+- SoC Maximum (Standard: **100 %**)
+- Max. Ladeleistung
+- Max. Entladeleistung
+- Teuer-Schwelle (€/kWh)
+
+### Sensor
+- AI Status
+- Steuerungsempfehlung
+- AI Debug (mit Entscheidungsdetails)
+
+---
+
+## ⚙️ Installation
+
+### 🔹 Über HACS (empfohlen)
+1. HACS → Integrationen
+2. „Zendure SmartFlow AI“ suchen
+3. Installieren
+4. Home Assistant neu starten
+5. Integration hinzufügen
+
+### 🔹 Manuell
+1. Repository nach  
+   `/config/custom_components/zendure_smartflow_ai/` kopieren
+2. Home Assistant neu starten
+3. Integration hinzufügen
+
+---
+
+## 🛠️ Einrichtung
+
+Beim Einrichten wählst du:
+- Akku-SoC-Sensor
+- PV-Leistung
+- Hausverbrauch
+- (optional) Tibber Strompreis-Export
+- Zendure AC Mode (input/output)
+- Zendure Input / Output Limit
+
+👉 Die Integration erstellt **alle Regler selbst**
+
+---
+
+## ⚠️ Wichtige Hinweise
+
+- Nach Updates ggf. **Integration neu hinzufügen**
+- Im **Manuellen Modus** erfolgt **keine Hardware-Steuerung**
+- Diese Integration ersetzt bestehende Automationen vollständig
+
+---
+
+## 🧪 Unterstützte Systeme
+
+- Zendure SolarFlow AC
+- Home Assistant ≥ 2024.12
+- Tibber (Diagramm-Datenexport)
+
+---
+
+## 📄 Lizenz
+MIT
+
+---
+
+## 🙌 Dank & Feedback
+Entwickelt mit ❤️ für die Home-Assistant-Community  
+Feedback & Issues:  
+👉 https://github.com/PalmManiac/zendure-smartflow-ai/issues
