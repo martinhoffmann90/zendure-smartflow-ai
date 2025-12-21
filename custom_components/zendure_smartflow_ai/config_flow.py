@@ -45,13 +45,13 @@ def _find_first_entity(
 
 
 class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    VERSION = 2
+    VERSION = 1
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            # Minimal Plausibilität: Wenn split, dann import/export erwarten
+            # Validierung: bei Split müssen beide gesetzt sein
             if user_input.get(CONF_GRID_MODE) == GRID_MODE_SPLIT:
                 if not user_input.get(CONF_GRID_IMPORT_ENTITY) or not user_input.get(CONF_GRID_EXPORT_ENTITY):
                     errors["base"] = "grid_split_missing"
@@ -66,9 +66,6 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         pv_guess = _find_first_entity(hass, "sensor", "power", "W")
         load_guess = _find_first_entity(hass, "sensor", "power", "W")
 
-        price_export_guess = None
-        # "enum" Tibber Export hat oft keine sinnvolle unit; wir lassen default leer.
-
         schema = vol.Schema(
             {
                 vol.Required(CONF_SOC_ENTITY, default=soc_guess): selector.EntitySelector(
@@ -81,7 +78,7 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
 
-                vol.Optional(CONF_PRICE_EXPORT_ENTITY, default=price_export_guess): selector.EntitySelector(
+                vol.Optional(CONF_PRICE_EXPORT_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
 
@@ -98,13 +95,12 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_GRID_MODE, default=GRID_MODE_SINGLE): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=[
-                            {"value": GRID_MODE_SINGLE, "label": "Ein Sensor: Netzleistung (+Bezug / –Einspeisung)"},
-                            {"value": GRID_MODE_SPLIT, "label": "Zwei Sensoren: Bezug & Einspeisung getrennt"},
+                            {"value": GRID_MODE_SINGLE, "label": "Ein Sensor (+ Bezug / – Einspeisung)"},
+                            {"value": GRID_MODE_SPLIT, "label": "Zwei Sensoren (Bezug und Einspeisung getrennt)"},
                         ],
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 ),
-
                 vol.Optional(CONF_GRID_POWER_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
