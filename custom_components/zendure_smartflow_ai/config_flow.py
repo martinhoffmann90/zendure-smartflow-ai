@@ -1,4 +1,3 @@
-# custom_components/zendure_smartflow_ai/config_flow.py
 from __future__ import annotations
 
 from typing import Any
@@ -17,12 +16,6 @@ from .const import (
     CONF_AC_MODE_ENTITY,
     CONF_INPUT_LIMIT_ENTITY,
     CONF_OUTPUT_LIMIT_ENTITY,
-    CONF_GRID_MODE,
-    CONF_GRID_POWER_ENTITY,
-    CONF_GRID_IMPORT_ENTITY,
-    CONF_GRID_EXPORT_ENTITY,
-    GRID_MODE_SINGLE,
-    GRID_MODE_SPLIT,
 )
 
 
