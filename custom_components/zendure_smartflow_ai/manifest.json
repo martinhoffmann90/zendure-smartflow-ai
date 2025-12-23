@@ -1,7 +1,7 @@
 {
   "domain": "zendure_smartflow_ai",
   "name": "Zendure SmartFlow AI",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "documentation": "https://github.com/PalmManiac/zendure-smartflow-ai",
   "requirements": [],
   "codeowners": ["@PalmManiac"],
