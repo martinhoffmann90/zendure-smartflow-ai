@@ -1,18 +1,17 @@
+# custom_components/zendure_smartflow_ai/coordinator.py
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 from typing import Any
 
-from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
 from .const import (
-    UPDATE_INTERVAL,
-    FREEZE_SECONDS,
     CONF_SOC_ENTITY,
     CONF_PV_ENTITY,
     CONF_LOAD_ENTITY,
@@ -20,33 +19,8 @@ from .const import (
     CONF_AC_MODE_ENTITY,
     CONF_INPUT_LIMIT_ENTITY,
     CONF_OUTPUT_LIMIT_ENTITY,
-    # Settings
-    SETTING_OPERATION_MODE,
-    SETTING_MANUAL_ACTION,
-    SETTING_SOC_MIN,
-    SETTING_SOC_MAX,
-    SETTING_MAX_CHARGE,
-    SETTING_MAX_DISCHARGE,
-    SETTING_PRICE_EXPENSIVE,
-    SETTING_PRICE_VERY_EXPENSIVE,
-    SETTING_PRICE_CHEAP,
-    SETTING_SURPLUS_MIN,
-    SETTING_MANUAL_CHARGE_W,
-    SETTING_MANUAL_DISCHARGE_W,
-    # Defaults
-    DEFAULT_OPERATION_MODE,
-    DEFAULT_MANUAL_ACTION,
-    DEFAULT_SOC_MIN,
-    DEFAULT_SOC_MAX,
-    DEFAULT_MAX_CHARGE,
-    DEFAULT_MAX_DISCHARGE,
-    DEFAULT_PRICE_EXPENSIVE,
-    DEFAULT_PRICE_VERY_EXPENSIVE,
-    DEFAULT_PRICE_CHEAP,
-    DEFAULT_SURPLUS_MIN,
-    DEFAULT_MANUAL_CHARGE_W,
-    DEFAULT_MANUAL_DISCHARGE_W,
-    # Modes / actions
+    UPDATE_INTERVAL,
+    FREEZE_SECONDS,
     MODE_AUTOMATIC,
     MODE_SUMMER,
     MODE_WINTER,
@@ -54,6 +28,13 @@ from .const import (
     MANUAL_STANDBY,
     MANUAL_CHARGE,
     MANUAL_DISCHARGE,
+    DEFAULT_SOC_MIN,
+    DEFAULT_SOC_MAX,
+    DEFAULT_MAX_CHARGE,
+    DEFAULT_MAX_DISCHARGE,
+    DEFAULT_EXPENSIVE_THRESHOLD,
+    DEFAULT_VERY_EXPENSIVE_THRESHOLD,
+    DEFAULT_SURPLUS_THRESHOLD,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -65,6 +46,7 @@ class EntityIds:
     pv: str
     load: str
     price_export: str | None
+
     ac_mode: str
     input_limit: str
     output_limit: str
@@ -74,41 +56,68 @@ def _to_float(val: Any, default: float | None = None) -> float | None:
     try:
         if val is None:
             return default
-        s = str(val).strip().lower()
-        if s in ("unknown", "unavailable", ""):
+        s = str(val).strip()
+        if s.lower() in ("unknown", "unavailable", ""):
             return default
-        return float(str(val).replace(",", "."))
+        return float(s.replace(",", "."))
     except Exception:
         return default
 
 
-class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
+def _parse_dt(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        dt = dt_util.parse_datetime(str(value))
+        if dt is None:
+            return None
+        # normalize to aware
+        if dt.tzinfo is None:
+            dt = dt_util.as_utc(dt_util.as_local(dt))
+        return dt
+    except Exception:
+        return None
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry):
+
+class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
+    """
+    v0.6.0 master:
+    - hardware control included (as in v0.5.0 behavior)
+    - price is optional
+    - manual mode never overridden
+    - summer strategy works without price
+    """
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.hass = hass
         self.entry = entry
 
         data = entry.data or {}
 
         self.entities = EntityIds(
-            soc=data.get(CONF_SOC_ENTITY, ""),
-            pv=data.get(CONF_PV_ENTITY, ""),
-            load=data.get(CONF_LOAD_ENTITY, ""),
+            soc=data[CONF_SOC_ENTITY],
+            pv=data[CONF_PV_ENTITY],
+            load=data[CONF_LOAD_ENTITY],
             price_export=data.get(CONF_PRICE_EXPORT_ENTITY),
-            ac_mode=data.get(CONF_AC_MODE_ENTITY, ""),
-            input_limit=data.get(CONF_INPUT_LIMIT_ENTITY, ""),
-            output_limit=data.get(CONF_OUTPUT_LIMIT_ENTITY, ""),
+
+            ac_mode=data[CONF_AC_MODE_ENTITY],
+            input_limit=data[CONF_INPUT_LIMIT_ENTITY],
+            output_limit=data[CONF_OUTPUT_LIMIT_ENTITY],
         )
 
-        # Anzeige-Freeze (nur recommendation/ai_status)
-        self._freeze_until: datetime | None = None
-        self._last_recommendation: str | None = None
-        self._last_ai_status: str | None = None
+        # AI mode + manual action are controlled by select entities in this integration
+        self.operation_mode: str = MODE_AUTOMATIC
+        self.manual_action: str = MANUAL_STANDBY
 
-        # Anti-Flap / Anti-Spam für Hardware
-        self._last_set_mode: str | None = None
-        self._last_set_in: float | None = None
-        self._last_set_out: float | None = None
+        # freeze only text outputs
+        self._freeze_until: datetime | None = None
+        self._last_ai_status: str | None = None
+        self._last_recommendation: str | None = None
+
+        # anti-spam for hardware calls
+        self._last_hw_mode: str | None = None
+        self._last_in_w: float | None = None
+        self._last_out_w: float | None = None
 
         super().__init__(
             hass,
@@ -117,18 +126,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=timedelta(seconds=UPDATE_INTERVAL),
         )
 
-    # ------------------------------------------
-    # Options (persistente Settings)
-    # ------------------------------------------
-    def _opt(self, key: str, default: Any) -> Any:
-        return (self.entry.options or {}).get(key, default)
-
-    def _is_valid_entity(self, entity_id: str) -> bool:
-        if not entity_id:
-            return False
-        st = self.hass.states.get(entity_id)
-        return st is not None and str(st.state).lower() not in ("unknown", "unavailable", "")
-
+    # -------------------------
+    # Entity helpers
+    # -------------------------
     def _state(self, entity_id: str) -> Any:
         st = self.hass.states.get(entity_id)
         return None if st is None else st.state
@@ -137,31 +137,82 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         st = self.hass.states.get(entity_id)
         return None if st is None else st.attributes.get(attr)
 
-    # ------------------------------------------
-    # Price from Tibber "Datenexport" (attributes.data)
-    # ------------------------------------------
-    def _price_now(self) -> float | None:
+    # -------------------------
+    # Settings from our number entities (created by this integration)
+    # (they may not exist yet on very first refresh -> use defaults)
+    # -------------------------
+    def _get_setting_number(self, key: str, default: float) -> float:
+        # number entity ids are stable: number.<domain>_<key>
+        ent = f"number.{self.entry.entry_id}_{key}"
+        return _to_float(self._state(ent), default) or default
+
+    # -------------------------
+    # Price export (Tibber data export)
+    # attributes.data: list[{start_time, price_per_kwh}, ...]
+    # -------------------------
+    def _price_now_from_export(self) -> float | None:
+        if not self.entities.price_export:
+            return None
+
+        export = self._attr(self.entities.price_export, "data")
+        if not isinstance(export, list) or not export:
+            return None
+
+        start0 = _parse_dt(export[0].get("start_time"))
+        if start0 is None:
+            # fallback: old behavior by index-from-midnight
+            now_local = dt_util.now()
+            idx = int((now_local.hour * 60 + now_local.minute) // 15)
+            if 0 <= idx < len(export):
+                return _to_float(export[idx].get("price_per_kwh"))
+            return None
+
+        now = dt_util.now()
+        # make now aware in same tz as start0
+        if start0.tzinfo is not None:
+            now = dt_util.as_local(now)
+        delta = now - dt_util.as_local(start0)
+        idx = int(delta.total_seconds() // 900)
+
+        if 0 <= idx < len(export):
+            return _to_float(export[idx].get("price_per_kwh"))
+        return None
+
+    def _price_stats_future(self) -> dict[str, float] | None:
+        """Return min/max/avg for upcoming 24h-ish window (from now)."""
         if not self.entities.price_export:
             return None
         export = self._attr(self.entities.price_export, "data")
         if not isinstance(export, list) or not export:
             return None
 
-        now = dt_util.now()  # local time
-        idx = int((now.hour * 60 + now.minute) // 15)
-        if idx < 0 or idx >= len(export):
-            return None
+        # try aligned index like _price_now_from_export
+        start0 = _parse_dt(export[0].get("start_time"))
+        now = dt_util.now()
+        if start0 is None:
+            idx = int((now.hour * 60 + now.minute) // 15)
+        else:
+            idx = int(((dt_util.as_local(now) - dt_util.as_local(start0)).total_seconds()) // 900)
 
-        item = export[idx]
-        if not isinstance(item, dict):
+        future = export[idx:] if 0 <= idx < len(export) else export
+        prices = []
+        for item in future:
+            p = _to_float(item.get("price_per_kwh"))
+            if p is not None:
+                prices.append(p)
+        if not prices:
             return None
-        return _to_float(item.get("price_per_kwh"), default=None)
+        return {
+            "min": min(prices),
+            "max": max(prices),
+            "avg": sum(prices) / len(prices),
+        }
 
-    # ------------------------------------------
-    # Hardware calls (Zendure)
-    # ------------------------------------------
+    # -------------------------
+    # Hardware calls (anti-spam)
+    # -------------------------
     async def _set_ac_mode(self, mode: str) -> None:
-        if not self.entities.ac_mode:
+        if mode == self._last_hw_mode:
             return
         await self.hass.services.async_call(
             "select",
@@ -169,374 +220,265 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             {"entity_id": self.entities.ac_mode, "option": mode},
             blocking=False,
         )
+        self._last_hw_mode = mode
 
     async def _set_input_limit(self, watts: float) -> None:
-        if not self.entities.input_limit:
+        watts = float(round(watts, 0))
+        if self._last_in_w is not None and abs(self._last_in_w - watts) < 25:
             return
         await self.hass.services.async_call(
             "number",
             "set_value",
-            {"entity_id": self.entities.input_limit, "value": float(round(watts, 0))},
+            {"entity_id": self.entities.input_limit, "value": watts},
             blocking=False,
         )
+        self._last_in_w = watts
 
     async def _set_output_limit(self, watts: float) -> None:
-        if not self.entities.output_limit:
+        watts = float(round(watts, 0))
+        if self._last_out_w is not None and abs(self._last_out_w - watts) < 25:
             return
         await self.hass.services.async_call(
             "number",
             "set_value",
-            {"entity_id": self.entities.output_limit, "value": float(round(watts, 0))},
+            {"entity_id": self.entities.output_limit, "value": watts},
             blocking=False,
         )
+        self._last_out_w = watts
 
-    async def _apply_control(self, mode: str, in_w: float, out_w: float) -> None:
-        """Only apply if changed enough (prevents flapping)."""
-        def changed(last: float | None, new: float, tol: float) -> bool:
-            if last is None:
-                return True
-            return abs(last - new) > tol
-
-        # Mode
-        if mode != self._last_set_mode:
-            await self._set_ac_mode(mode)
-            self._last_set_mode = mode
-
-        # Limits (deadband 25W)
-        if changed(self._last_set_in, in_w, 25.0):
+    async def _apply_hw(self, mode: str, in_w: float, out_w: float) -> None:
+        if mode == "input":
+            await self._set_ac_mode("input")
             await self._set_input_limit(in_w)
-            self._last_set_in = in_w
-
-        if changed(self._last_set_out, out_w, 25.0):
+            await self._set_output_limit(0)
+        elif mode == "output":
+            await self._set_ac_mode("output")
             await self._set_output_limit(out_w)
-            self._last_set_out = out_w
+            await self._set_input_limit(0)
+        else:
+            # safe fallback
+            await self._set_ac_mode("input")
+            await self._set_input_limit(0)
+            await self._set_output_limit(0)
 
-    # ------------------------------------------
+    # -------------------------
+    # Called by select entities
+    # -------------------------
+    async def async_set_operation_mode(self, mode: str) -> None:
+        self.operation_mode = mode
+        await self.async_request_refresh()
+
+    async def async_set_manual_action(self, action: str) -> None:
+        self.manual_action = action
+        await self.async_request_refresh()
+
+    # -------------------------
     # Main update
-    # ------------------------------------------
+    # -------------------------
     async def _async_update_data(self) -> dict[str, Any]:
         try:
             now_utc = dt_util.utcnow()
 
-            # --- Raw States ---
-            soc_raw = self._state(self.entities.soc)
-            pv_raw = self._state(self.entities.pv)
-            load_raw = self._state(self.entities.load)
+            soc = _to_float(self._state(self.entities.soc), 0.0) or 0.0
+            pv = _to_float(self._state(self.entities.pv), 0.0) or 0.0
+            load = _to_float(self._state(self.entities.load), 0.0) or 0.0
 
-            soc = _to_float(soc_raw, default=None)
-            pv = _to_float(pv_raw, default=None)
-            load = _to_float(load_raw, default=None)
-
-            # Settings (Integration Entities -> entry.options)
-            op_mode = str(self._opt(SETTING_OPERATION_MODE, DEFAULT_OPERATION_MODE))
-            manual_action = str(self._opt(SETTING_MANUAL_ACTION, DEFAULT_MANUAL_ACTION))
-
-            soc_min = float(self._opt(SETTING_SOC_MIN, DEFAULT_SOC_MIN))
-            soc_max = float(self._opt(SETTING_SOC_MAX, DEFAULT_SOC_MAX))
-
-            max_charge = float(self._opt(SETTING_MAX_CHARGE, DEFAULT_MAX_CHARGE))
-            max_discharge = float(self._opt(SETTING_MAX_DISCHARGE, DEFAULT_MAX_DISCHARGE))
-
-            price_expensive = float(self._opt(SETTING_PRICE_EXPENSIVE, DEFAULT_PRICE_EXPENSIVE))
-            price_very_expensive = float(self._opt(SETTING_PRICE_VERY_EXPENSIVE, DEFAULT_PRICE_VERY_EXPENSIVE))
-            price_cheap = float(self._opt(SETTING_PRICE_CHEAP, DEFAULT_PRICE_CHEAP))
-
-            surplus_min = float(self._opt(SETTING_SURPLUS_MIN, DEFAULT_SURPLUS_MIN))
-
-            manual_charge_w = float(self._opt(SETTING_MANUAL_CHARGE_W, DEFAULT_MANUAL_CHARGE_W))
-            manual_discharge_w = float(self._opt(SETTING_MANUAL_DISCHARGE_W, DEFAULT_MANUAL_DISCHARGE_W))
-
-            # --- Validity check: never stay "Init"
-            invalid_reasons: list[str] = []
-            if soc is None:
-                invalid_reasons.append("soc_invalid")
-                soc = 0.0
-            if pv is None:
-                invalid_reasons.append("pv_invalid")
-                pv = 0.0
-            if load is None:
-                invalid_reasons.append("load_invalid")
-                load = 0.0
-
-            price_now = self._price_now()  # optional
-            price_valid = price_now is not None
-
-            # Derived
             surplus = max(pv - load, 0.0)
             deficit = max(load - pv, 0.0)
 
-            soc_notfall = max(soc_min - 4.0, 5.0)
+            # settings (from our own number entities, fallback to defaults)
+            soc_min = self._get_setting_number("soc_min", float(DEFAULT_SOC_MIN))
+            soc_max = self._get_setting_number("soc_max", float(DEFAULT_SOC_MAX))
+            max_charge = self._get_setting_number("max_charge", float(DEFAULT_MAX_CHARGE))
+            max_discharge = self._get_setting_number("max_discharge", float(DEFAULT_MAX_DISCHARGE))
+            expensive_thr = self._get_setting_number("expensive_threshold", float(DEFAULT_EXPENSIVE_THRESHOLD))
+            very_expensive_thr = self._get_setting_number("very_expensive_threshold", float(DEFAULT_VERY_EXPENSIVE_THRESHOLD))
+            surplus_thr = self._get_setting_number("surplus_threshold", float(DEFAULT_SURPLUS_THRESHOLD))
 
-            # ------------------------------------------
-            # Decision
-            # ------------------------------------------
-            ai_status = "standby"
-            recommendation = "standby"
+            price_now = self._price_now_from_export()
+            stats = self._price_stats_future()
+
+            # dynamic expensive (optional enhancement)
+            dynamic_expensive = None
+            if stats:
+                span = stats["max"] - stats["min"]
+                dynamic_expensive = stats["avg"] + span * 0.25
+            effective_expensive = max(expensive_thr, dynamic_expensive) if dynamic_expensive is not None else expensive_thr
+
+            # decision outputs
+            ai_status = "init"
+            recommendation = "init"
             debug = "OK"
 
-            set_mode = "input"
-            set_in = 0.0
-            set_out = 0.0
+            hw_mode = "input"
+            in_w = 0.0
+            out_w = 0.0
 
-            # If sensors invalid -> still return data, but don't do risky control
-            if invalid_reasons:
-                ai_status = "sensor_invalid"
-                recommendation = "standby"
-                debug = "SENSOR_INVALID"
-                # Safety: no forced changes
-                set_mode = "input"
-                set_in = 0.0
-                set_out = 0.0
+            # -------------------------
+            # 0) MANUAL mode: never overridden
+            # -------------------------
+            if self.operation_mode == MODE_MANUAL:
+                debug = "MANUAL_MODE_ACTIVE"
+                ai_status = "manual"
+                recommendation = self.manual_action
 
-            else:
-                # ==========================
-                # MANUAL (übersteuert)
-                # ==========================
-                if op_mode == MODE_MANUAL:
-                    debug = "MANUAL_MODE_ACTIVE"
-
-                    if manual_action == MANUAL_CHARGE and soc < soc_max:
-                        ai_status = "manual_charge"
-                        recommendation = "laden"
-                        set_mode = "input"
-                        set_in = max(0.0, min(max_charge, manual_charge_w))
-                        set_out = 0.0
-
-                    elif manual_action == MANUAL_DISCHARGE and soc > soc_min:
-                        ai_status = "manual_discharge"
-                        recommendation = "entladen"
-                        set_mode = "output"
-                        # Wenn möglich dynamisch ans Defizit koppeln, sonst feste W
-                        want = deficit if deficit > 0 else manual_discharge_w
-                        set_out = max(0.0, min(max_discharge, want))
-                        set_in = 0.0
-
-                    else:
-                        ai_status = "manual_standby"
-                        recommendation = "standby"
-                        set_mode = "input"
-                        set_in = 0.0
-                        set_out = 0.0
-
-                # ==========================
-                # SUMMER (Autarkie)
-                # ==========================
-                elif op_mode == MODE_SUMMER:
-                    debug = "SUMMER_MODE_ACTIVE"
-
-                    # PV Überschuss laden
-                    if surplus >= surplus_min and soc < soc_max:
-                        ai_status = "pv_überschuss"
-                        recommendation = "laden"
-                        set_mode = "input"
-                        set_in = min(max_charge, surplus)
-                        set_out = 0.0
-
-                    # Bei Defizit entladen (Autarkie)
-                    elif deficit > 50 and soc > soc_min:
-                        ai_status = "autarkie_entladen"
-                        recommendation = "entladen"
-                        set_mode = "output"
-                        set_out = min(max_discharge, deficit)
-                        set_in = 0.0
-
-                    else:
-                        ai_status = "standby"
-                        recommendation = "standby"
-                        set_mode = "input"
-                        set_in = 0.0
-                        set_out = 0.0
-
-                # ==========================
-                # WINTER (Preis)
-                # ==========================
-                elif op_mode == MODE_WINTER:
-                    debug = "WINTER_MODE_ACTIVE"
-
-                    # Preis ungültig -> fallback autarkie light
-                    if not price_valid:
-                        debug = "PRICE_INVALID_FALLBACK"
-                        if surplus >= surplus_min and soc < soc_max:
-                            ai_status = "pv_überschuss"
-                            recommendation = "laden"
-                            set_mode = "input"
-                            set_in = min(max_charge, surplus)
-                        elif deficit > 50 and soc > soc_min:
-                            ai_status = "defizit_entladen"
-                            recommendation = "entladen"
-                            set_mode = "output"
-                            set_out = min(max_discharge, deficit)
-                        else:
-                            ai_status = "standby"
-                            recommendation = "standby"
-
-                    else:
-                        assert price_now is not None
-                        # Sehr teuer -> immer Defizit decken, solange SoC > Min
-                        if price_now >= price_very_expensive and soc > soc_min:
-                            ai_status = "sehr_teuer_entladen"
-                            recommendation = "entladen"
-                            set_mode = "output"
-                            set_out = min(max_discharge, deficit)
-                            set_in = 0.0
-
-                        # Teuer -> entladen wenn möglich
-                        elif price_now >= price_expensive and soc > soc_min:
-                            ai_status = "teuer_entladen"
-                            recommendation = "entladen"
-                            set_mode = "output"
-                            set_out = min(max_discharge, deficit)
-                            set_in = 0.0
-
-                        # Günstig -> laden (auch aus Netz) bis soc_max
-                        elif price_now <= price_cheap and soc < soc_max:
-                            ai_status = "günstig_laden"
-                            recommendation = "laden"
-                            set_mode = "input"
-                            set_in = max_charge
-                            set_out = 0.0
-
-                        # sonst: PV Überschuss laden, optional
-                        elif surplus >= surplus_min and soc < soc_max:
-                            ai_status = "pv_überschuss"
-                            recommendation = "laden"
-                            set_mode = "input"
-                            set_in = min(max_charge, surplus)
-                            set_out = 0.0
-
-                        else:
-                            ai_status = "standby"
-                            recommendation = "standby"
-                            set_mode = "input"
-                            set_in = 0.0
-                            set_out = 0.0
-
-                # ==========================
-                # AUTOMATIC (Mix)
-                # ==========================
+                if self.manual_action == MANUAL_CHARGE and soc < soc_max:
+                    hw_mode = "input"
+                    in_w = max_charge
+                elif self.manual_action == MANUAL_DISCHARGE and soc > soc_min:
+                    hw_mode = "output"
+                    out_w = min(max_discharge, max(deficit, 0.0))
                 else:
-                    debug = "AUTO_MODE_ACTIVE"
+                    hw_mode = "input"
+                    in_w = 0.0
+                    out_w = 0.0
 
-                    # Notfall: wenn sehr niedrig -> laden (auch ohne Preis)
-                    if soc <= soc_notfall and soc < soc_max:
-                        ai_status = "notladung"
-                        recommendation = "laden"
-                        set_mode = "input"
-                        set_in = min(max_charge, 300.0)
-                        set_out = 0.0
+                # apply hardware (manual is allowed to control)
+                await self._apply_hw(hw_mode, in_w, out_w)
 
-                    # Preislogik, wenn verfügbar
-                    elif price_valid and price_now is not None:
-                        if price_now >= price_very_expensive and soc > soc_min:
-                            ai_status = "sehr_teuer_entladen"
-                            recommendation = "entladen"
-                            set_mode = "output"
-                            set_out = min(max_discharge, deficit)
-                            set_in = 0.0
+                return {
+                    "ai_status": ai_status,
+                    "recommendation": recommendation,
+                    "debug": debug,
+                    "details": {
+                        "mode": self.operation_mode,
+                        "manual_action": self.manual_action,
+                        "soc": soc,
+                        "pv": pv,
+                        "load": load,
+                        "surplus": surplus,
+                        "deficit": deficit,
+                        "set_mode": hw_mode,
+                        "set_input_w": round(in_w, 0),
+                        "set_output_w": round(out_w, 0),
+                    },
+                }
 
-                        elif price_now >= price_expensive and soc > soc_min:
-                            ai_status = "teuer_entladen"
-                            recommendation = "entladen"
-                            set_mode = "output"
-                            set_out = min(max_discharge, deficit)
-                            set_in = 0.0
+            # -------------------------
+            # 1) Common emergency guard (only when soc is extremely low)
+            # -------------------------
+            soc_notfall = max(soc_min - 4.0, 5.0)
 
-                        elif surplus >= surplus_min and soc < soc_max:
-                            ai_status = "pv_überschuss"
-                            recommendation = "laden"
-                            set_mode = "input"
-                            set_in = min(max_charge, surplus)
-                            set_out = 0.0
+            # -------------------------
+            # 2) Mode strategies
+            # -------------------------
+            # SUMMER = PV/autarky, works without price
+            if self.operation_mode == MODE_SUMMER:
+                ai_status = "summer"
+                if soc <= soc_notfall:
+                    recommendation = "notladung"
+                    hw_mode = "input"
+                    in_w = min(max_charge, 300.0)
+                elif surplus >= surplus_thr and soc < soc_max:
+                    recommendation = "pv_ueberschuss_laden"
+                    hw_mode = "input"
+                    in_w = min(max_charge, surplus)
+                elif deficit > 80 and soc > soc_min:
+                    recommendation = "autarkie_entladen"
+                    hw_mode = "output"
+                    out_w = min(max_discharge, deficit)
+                else:
+                    recommendation = "standby"
+                    hw_mode = "input"
+                    in_w = 0.0
 
-                        else:
-                            ai_status = "standby"
-                            recommendation = "standby"
-                            set_mode = "input"
-                            set_in = 0.0
-                            set_out = 0.0
-
-                    # Ohne Preis: reine Autarkie
+            # WINTER = price shaving; if no price -> fallback to summer logic
+            elif self.operation_mode == MODE_WINTER:
+                ai_status = "winter"
+                if price_now is None:
+                    debug = "PRICE_MISSING_FALLBACK_SUMMER"
+                    # fallback like summer
+                    if surplus >= surplus_thr and soc < soc_max:
+                        recommendation = "pv_ueberschuss_laden"
+                        hw_mode = "input"
+                        in_w = min(max_charge, surplus)
+                    elif deficit > 80 and soc > soc_min:
+                        recommendation = "autarkie_entladen"
+                        hw_mode = "output"
+                        out_w = min(max_discharge, deficit)
                     else:
-                        if surplus >= surplus_min and soc < soc_max:
-                            ai_status = "pv_überschuss"
-                            recommendation = "laden"
-                            set_mode = "input"
-                            set_in = min(max_charge, surplus)
-                            set_out = 0.0
-                        elif deficit > 50 and soc > soc_min:
-                            ai_status = "defizit_entladen"
-                            recommendation = "entladen"
-                            set_mode = "output"
-                            set_out = min(max_discharge, deficit)
-                            set_in = 0.0
-                        else:
-                            ai_status = "standby"
-                            recommendation = "standby"
-                            set_mode = "input"
-                            set_in = 0.0
-                            set_out = 0.0
+                        recommendation = "standby"
+                        hw_mode = "input"
+                        in_w = 0.0
+                else:
+                    # very expensive always discharge (if possible)
+                    if price_now >= very_expensive_thr and soc > soc_min:
+                        recommendation = "sehr_teuer_entladen"
+                        hw_mode = "output"
+                        out_w = min(max_discharge, deficit)
+                    elif price_now >= effective_expensive and soc > soc_min:
+                        recommendation = "teuer_entladen"
+                        hw_mode = "output"
+                        out_w = min(max_discharge, deficit)
+                    elif surplus >= surplus_thr and soc < soc_max:
+                        recommendation = "pv_ueberschuss_laden"
+                        hw_mode = "input"
+                        in_w = min(max_charge, surplus)
+                    else:
+                        recommendation = "standby"
+                        hw_mode = "input"
+                        in_w = 0.0
 
-            # ------------------------------------------
-            # Freeze (nur Anzeige)
-            # ------------------------------------------
+            # AUTO = if price available -> winter-ish, else summer-ish
+            else:
+                self.operation_mode = MODE_AUTOMATIC
+                ai_status = "automatic"
+                if price_now is not None and price_now >= effective_expensive and soc > soc_min:
+                    recommendation = "teuer_entladen"
+                    hw_mode = "output"
+                    out_w = min(max_discharge, deficit)
+                elif surplus >= surplus_thr and soc < soc_max:
+                    recommendation = "pv_ueberschuss_laden"
+                    hw_mode = "input"
+                    in_w = min(max_charge, surplus)
+                elif deficit > 80 and soc > soc_min and price_now is None:
+                    # no price sensor -> still allow autarky discharge
+                    recommendation = "autarkie_entladen"
+                    hw_mode = "output"
+                    out_w = min(max_discharge, deficit)
+                else:
+                    recommendation = "standby"
+                    hw_mode = "input"
+                    in_w = 0.0
+
+            # -------------------------
+            # 3) Freeze ONLY text (optional)
+            # -------------------------
             if self._freeze_until and now_utc < self._freeze_until:
-                ai_status_display = self._last_ai_status or ai_status
-                recommendation_display = self._last_recommendation or recommendation
+                ai_status = self._last_ai_status or ai_status
+                recommendation = self._last_recommendation or recommendation
             else:
                 self._freeze_until = now_utc + timedelta(seconds=FREEZE_SECONDS)
                 self._last_ai_status = ai_status
                 self._last_recommendation = recommendation
-                ai_status_display = ai_status
-                recommendation_display = recommendation
 
-            # ------------------------------------------
-            # Apply hardware (auch wenn price invalid – außer sensor_invalid)
-            # ------------------------------------------
-            if debug != "SENSOR_INVALID":
-                await self._apply_control(set_mode, set_in, set_out)
+            # -------------------------
+            # 4) Apply hardware
+            # -------------------------
+            await self._apply_hw(hw_mode, in_w, out_w)
 
             return {
-                "ai_status": ai_status_display,
-                "recommendation": recommendation_display,
+                "ai_status": ai_status,
+                "recommendation": recommendation,
                 "debug": debug,
                 "details": {
-                    "operation_mode": op_mode,
-                    "manual_action": manual_action,
-                    "soc_raw": soc_raw,
-                    "pv_raw": pv_raw,
-                    "load_raw": load_raw,
-                    "soc": round(float(soc), 2),
-                    "pv": round(float(pv), 1),
-                    "load": round(float(load), 1),
-                    "surplus": round(float(surplus), 1),
-                    "deficit": round(float(deficit), 1),
+                    "mode": self.operation_mode,
                     "price_now": price_now,
-                    "price_valid": price_valid,
-                    "price_expensive": price_expensive,
-                    "price_very_expensive": price_very_expensive,
-                    "price_cheap": price_cheap,
+                    "expensive_threshold_fixed": expensive_thr,
+                    "expensive_threshold_dynamic": dynamic_expensive,
+                    "expensive_threshold_effective": effective_expensive,
+                    "very_expensive_threshold": very_expensive_thr,
+                    "soc": soc,
                     "soc_min": soc_min,
                     "soc_max": soc_max,
-                    "soc_notfall": soc_notfall,
-                    "max_charge": max_charge,
-                    "max_discharge": max_discharge,
-                    "surplus_min": surplus_min,
-                    "manual_charge_w": manual_charge_w,
-                    "manual_discharge_w": manual_discharge_w,
-                    "set_mode": set_mode,
-                    "set_input_w": round(set_in, 0),
-                    "set_output_w": round(set_out, 0),
+                    "pv": pv,
+                    "load": load,
+                    "surplus": surplus,
+                    "deficit": deficit,
+                    "set_mode": hw_mode,
+                    "set_input_w": round(in_w, 0),
+                    "set_output_w": round(out_w, 0),
                     "freeze_until": self._freeze_until.isoformat() if self._freeze_until else None,
-                    "invalid_reasons": invalid_reasons,
-                    "entities": {
-                        "soc": self.entities.soc,
-                        "pv": self.entities.pv,
-                        "load": self.entities.load,
-                        "price_export": self.entities.price_export,
-                        "ac_mode": self.entities.ac_mode,
-                        "input_limit": self.entities.input_limit,
-                        "output_limit": self.entities.output_limit,
-                    },
                 },
             }
 
