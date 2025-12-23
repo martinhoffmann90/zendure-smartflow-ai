@@ -1,3 +1,4 @@
+// custom_components/zendure_smartflow_ai/translations/de.json
 {
   "config": {
     "error": {
@@ -15,10 +16,52 @@
           "ac_mode_entity": "Zendure AC Mode (Select: input/output)",
           "input_limit_entity": "Zendure Input Limit (Number, W)",
           "output_limit_entity": "Zendure Output Limit (Number, W)",
-          "grid_mode": "Netzsensor-Setup (optional)",
+          "grid_mode": "Netzsensor-Setup",
           "grid_power_entity": "Netzleistung (+Bezug / –Einspeisung) (optional)",
           "grid_import_entity": "Bezug (W) (optional, bei zwei Sensoren)",
           "grid_export_entity": "Einspeisung (W) (optional, bei zwei Sensoren)"
+        }
+      }
+    }
+  },
+
+  "entity": {
+    "sensor": {
+      "zendure_smartflow_ai": {
+        "ai_status": { "name": "AI-Status" },
+        "recommendation": { "name": "Steuerungsempfehlung" },
+        "debug": { "name": "AI Debug" }
+      }
+    },
+    "number": {
+      "zendure_smartflow_ai": {
+        "soc_min": { "name": "SoC Minimum" },
+        "soc_max": { "name": "SoC Maximum" },
+        "max_charge": { "name": "Max. Ladeleistung" },
+        "max_discharge": { "name": "Max. Entladeleistung" },
+        "expensive_threshold": { "name": "Teuer-Schwelle" },
+        "very_expensive_threshold": { "name": "Sehr teuer-Schwelle" },
+        "surplus_threshold": { "name": "PV-Überschuss-Schwelle" }
+      }
+    },
+    "select": {
+      "zendure_smartflow_ai": {
+        "ai_mode": {
+          "name": "Zendure SmartFlow AI Modus",
+          "state": {
+            "automatic": "Automatik",
+            "summer": "Sommer",
+            "winter": "Winter",
+            "manual": "Manuell"
+          }
+        },
+        "manual_action": {
+          "name": "Manuell Aktion",
+          "state": {
+            "standby": "Standby",
+            "charge": "Laden",
+            "discharge": "Entladen"
+          }
         }
       }
     }
