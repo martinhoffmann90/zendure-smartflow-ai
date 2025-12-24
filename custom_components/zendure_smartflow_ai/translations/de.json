@@ -1,51 +1,39 @@
 {
+  "config": {
+    "step": {
+      "user": {
+        "title": "Zendure SmartFlow AI",
+        "description": "Wähle die Sensoren/Entitäten aus, die bei dir vorhanden sind. Der Strompreis-Export ist optional (Sommer/PV-Modus funktioniert auch ohne).",
+        "data": {
+          "soc_entity": "Akkustand (SoC) in %",
+          "pv_entity": "PV-Leistung (W)",
+          "load_entity": "Hausverbrauch (W)",
+          "price_export_entity": "Strompreis-Export (Tibber Datenexport, optional)",
+          "ac_mode_entity": "Zendure AC Mode (Select: input/output)",
+          "input_limit_entity": "Zendure Input Limit (Number, W)",
+          "output_limit_entity": "Zendure Output Limit (Number, W)"
+        }
+      }
+    }
+  },
   "entity": {
     "sensor": {
-      "zendure_smartflow_ai_status": {
-        "name": "Zendure SmartFlow AI Status"
-      },
-      "zendure_smartflow_ai_recommendation": {
-        "name": "Zendure SmartFlow AI Empfehlung"
-      },
-      "zendure_smartflow_ai_price_now": {
-        "name": "Aktueller Strompreis"
-      }
-    },
-    "select": {
-      "zendure_smartflow_ai_mode": {
-        "name": "Zendure SmartFlow AI Modus",
-        "state": {
-          "summer": "Sommer",
-          "winter": "Winter",
-          "manual": "Manuell",
-          "off": "Aus"
-        }
-      },
-      "zendure_smartflow_ai_manual_action": {
-        "name": "Manuelle Aktion",
-        "state": {
-          "standby": "Standby",
-          "charge": "Laden",
-          "discharge": "Entladen"
-        }
-      }
+      "status": { "name": "Status" },
+      "recommendation": { "name": "Steuerungsempfehlung" },
+      "debug": { "name": "Debug" }
     },
     "number": {
-      "zendure_smartflow_ai_soc_min": {
-        "name": "Minimaler Akkuladestand (SoC)"
-      },
-      "zendure_smartflow_ai_soc_max": {
-        "name": "Maximaler Akkuladestand (SoC)"
-      },
-      "zendure_smartflow_ai_max_charge": {
-        "name": "Maximale Ladeleistung"
-      },
-      "zendure_smartflow_ai_max_discharge": {
-        "name": "Maximale Entladeleistung"
-      },
-      "zendure_smartflow_ai_price_threshold": {
-        "name": "Teuer-Schwelle Strompreis"
-      }
+      "soc_min": { "name": "SoC Minimum" },
+      "soc_max": { "name": "SoC Maximum" },
+      "max_charge": { "name": "Max. Ladeleistung" },
+      "max_discharge": { "name": "Max. Entladeleistung" },
+      "price_threshold": { "name": "Schwelle: Teuer" },
+      "very_expensive_threshold": { "name": "Schwelle: Sehr teuer" },
+      "freeze_seconds": { "name": "Freeze (Sekunden)" }
+    },
+    "select": {
+      "ai_mode": { "name": "Moduswahl" },
+      "manual_action": { "name": "Manuelle Aktion" }
     }
   }
 }
