@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import voluptuous as vol
 from typing import Any
+
+import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.helpers import selector
@@ -17,10 +18,13 @@ from .const import (
     CONF_OUTPUT_LIMIT_ENTITY,
 )
 
+
 class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
+        errors: dict[str, str] = {}
+
         if user_input is not None:
             return self.async_create_entry(
                 title="Zendure SmartFlow AI",
@@ -38,11 +42,13 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_LOAD_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
-                # optional: Price export list (Tibber data export etc.)
+
+                # Optional: Tibber Export mit attributes.data (Startzeit + price_per_kwh)
                 vol.Optional(CONF_PRICE_EXPORT_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
-                # Zendure AC controls (from Zendure integration)
+
+                # Zendure AC Steuerung
                 vol.Required(CONF_AC_MODE_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="select")
                 ),
@@ -55,4 +61,8 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             }
         )
 
-        return self.async_show_form(step_id="user", data_schema=schema)
+        return self.async_show_form(
+            step_id="user",
+            data_schema=schema,
+            errors=errors,
+        )
