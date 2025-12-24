@@ -1,91 +1,163 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Callable
 
 from homeassistant.components.number import NumberEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
     DOMAIN,
-    DEVICE_NAME,
-    DEVICE_MANUFACTURER,
-    DEVICE_MODEL,
     DEFAULT_SOC_MIN,
     DEFAULT_SOC_MAX,
     DEFAULT_MAX_CHARGE,
     DEFAULT_MAX_DISCHARGE,
-    DEFAULT_PRICE_THRESHOLD,
+    DEFAULT_EXPENSIVE_THRESHOLD,
+    DEFAULT_VERY_EXPENSIVE_THRESHOLD,
+    DEFAULT_FREEZE_SECONDS,
 )
+from .coordinator import ZendureSmartFlowCoordinator
 
 
-@dataclass
-class _NumDef:
+@dataclass(frozen=True)
+class _NumSpec:
     key: str
     name: str
-    icon: str
-    min_v: float
-    max_v: float
+    unit: str | None
+    min_value: float
+    max_value: float
     step: float
     default: float
-    unit: str | None = None
+    getter: Callable[[ZendureSmartFlowCoordinator], float]
+    setter: Callable[[ZendureSmartFlowCoordinator, float], None]
 
 
-NUMBERS: list[_NumDef] = [
-    _NumDef("soc_min", "SoC Min", "mdi:battery-10", 0, 100, 1, float(DEFAULT_SOC_MIN), "%"),
-    _NumDef("soc_max", "SoC Max", "mdi:battery-90", 0, 100, 1, float(DEFAULT_SOC_MAX), "%"),
-    _NumDef("max_charge", "Max. Ladeleistung", "mdi:flash", 0, 5000, 1, float(DEFAULT_MAX_CHARGE), "W"),
-    _NumDef("max_discharge", "Max. Entladeleistung", "mdi:flash-outline", 0, 5000, 1, float(DEFAULT_MAX_DISCHARGE), "W"),
-    _NumDef("price_threshold", "Teuer-Schwelle", "mdi:currency-eur", 0, 2.0, 0.01, float(DEFAULT_PRICE_THRESHOLD), "€/kWh"),
+def _setattr(obj, key: str, val: float) -> None:
+    setattr(obj, key, val)
+
+
+NUMBERS: list[_NumSpec] = [
+    _NumSpec(
+        key="soc_min",
+        name="SoC Minimum",
+        unit="%",
+        min_value=0.0,
+        max_value=100.0,
+        step=1.0,
+        default=DEFAULT_SOC_MIN,
+        getter=lambda c: float(c.soc_min),
+        setter=lambda c, v: _setattr(c, "soc_min", float(v)),
+    ),
+    _NumSpec(
+        key="soc_max",
+        name="SoC Maximum",
+        unit="%",
+        min_value=0.0,
+        max_value=100.0,
+        step=1.0,
+        default=DEFAULT_SOC_MAX,
+        getter=lambda c: float(c.soc_max),
+        setter=lambda c, v: _setattr(c, "soc_max", float(v)),
+    ),
+    _NumSpec(
+        key="max_charge",
+        name="Max Ladeleistung",
+        unit="W",
+        min_value=0.0,
+        max_value=5000.0,
+        step=1.0,
+        default=DEFAULT_MAX_CHARGE,
+        getter=lambda c: float(c.max_charge),
+        setter=lambda c, v: _setattr(c, "max_charge", float(v)),
+    ),
+    _NumSpec(
+        key="max_discharge",
+        name="Max Entladeleistung",
+        unit="W",
+        min_value=0.0,
+        max_value=5000.0,
+        step=1.0,
+        default=DEFAULT_MAX_DISCHARGE,
+        getter=lambda c: float(c.max_discharge),
+        setter=lambda c, v: _setattr(c, "max_discharge", float(v)),
+    ),
+    _NumSpec(
+        key="expensive_threshold",
+        name="Schwelle Teuer",
+        unit="€/kWh",
+        min_value=0.0,
+        max_value=2.0,
+        step=0.01,
+        default=DEFAULT_EXPENSIVE_THRESHOLD,
+        getter=lambda c: float(c.expensive_threshold),
+        setter=lambda c, v: _setattr(c, "expensive_threshold", float(v)),
+    ),
+    _NumSpec(
+        key="very_expensive_threshold",
+        name="Schwelle Sehr teuer",
+        unit="€/kWh",
+        min_value=0.0,
+        max_value=2.0,
+        step=0.01,
+        default=DEFAULT_VERY_EXPENSIVE_THRESHOLD,
+        getter=lambda c: float(c.very_expensive_threshold),
+        setter=lambda c, v: _setattr(c, "very_expensive_threshold", float(v)),
+    ),
+    _NumSpec(
+        key="freeze_seconds",
+        name="Recommendation-Freeze",
+        unit="s",
+        min_value=0.0,
+        max_value=600.0,
+        step=1.0,
+        default=float(DEFAULT_FREEZE_SECONDS),
+        getter=lambda c: float(c.freeze_seconds),
+        setter=lambda c, v: _setattr(c, "freeze_seconds", int(round(v, 0))),
+    ),
 ]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities) -> None:
-    async_add_entities([ZendureSettingNumber(entry, nd) for nd in NUMBERS])
+    coordinator: ZendureSmartFlowCoordinator = hass.data[DOMAIN][entry.entry_id]
+    async_add_entities([ZendureSmartFlowAINumber(coordinator, entry, spec) for spec in NUMBERS])
 
 
-class ZendureSettingNumber(NumberEntity):
+class ZendureSmartFlowAINumber(CoordinatorEntity[ZendureSmartFlowCoordinator], NumberEntity):
     _attr_has_entity_name = True
-    _attr_entity_category = EntityCategory.CONFIG
 
-    def __init__(self, entry: ConfigEntry, nd: _NumDef) -> None:
+    def __init__(self, coordinator: ZendureSmartFlowCoordinator, entry: ConfigEntry, spec: _NumSpec) -> None:
+        super().__init__(coordinator)
         self._entry = entry
-        self._def = nd
-        self._attr_name = nd.name
-        self._attr_icon = nd.icon
-        self._attr_native_min_value = nd.min_v
-        self._attr_native_max_value = nd.max_v
-        self._attr_native_step = nd.step
-        self._attr_native_unit_of_measurement = nd.unit
+        self._spec = spec
 
-        # Stable entity_id suggestions (so coordinator can read them)
-        # -> number.zendure_smartflow_ai_soc_min etc.
-        self._attr_suggested_object_id = f"{DOMAIN}_{nd.key}"
+        self._attr_unique_id = f"{entry.entry_id}_{spec.key}"
+        self._attr_name = spec.name
 
-        self._value = nd.default
+        self._attr_native_unit_of_measurement = spec.unit
+        self._attr_native_min_value = spec.min_value
+        self._attr_native_max_value = spec.max_value
+        self._attr_native_step = spec.step
 
-    @property
-    def unique_id(self) -> str:
-        return f"{self._entry.entry_id}_{self._def.key}"
+        # set default into coordinator (first boot)
+        spec.setter(self.coordinator, spec.default)
 
     @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": DEVICE_NAME,
-            "manufacturer": DEVICE_MANUFACTURER,
-            "model": DEVICE_MODEL,
-        }
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._entry.entry_id)},
+            name="Zendure SmartFlow AI",
+            manufacturer="TK-Multimedia / Community",
+            model="SmartFlow AI",
+        )
 
     @property
-    def native_value(self):
-        return self._value
+    def native_value(self) -> float:
+        return float(self._spec.getter(self.coordinator))
 
     async def async_set_native_value(self, value: float) -> None:
-        # Round to step (no crazy decimals on iPad UI)
-        if self._def.step >= 1:
-            self._value = float(int(round(value, 0)))
-        else:
-            self._value = float(round(value, 2))
+        self._spec.setter(self.coordinator, float(value))
+        # No coordinator refresh needed; it applies next tick
         self.async_write_ha_state()
