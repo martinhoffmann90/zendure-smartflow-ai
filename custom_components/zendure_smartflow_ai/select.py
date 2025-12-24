@@ -1,81 +1,94 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
     DOMAIN,
-    DEVICE_NAME,
-    DEVICE_MANUFACTURER,
-    DEVICE_MODEL,
     AI_MODES,
-    AI_MODE_AUTO,
+    AI_MODE_WINTER,
     MANUAL_ACTIONS,
-    MANUAL_STANDBY,
+    MANUAL_ACTION_STANDBY,
 )
+from .coordinator import ZendureSmartFlowCoordinator
+
+
+@dataclass(frozen=True)
+class _SelSpec:
+    key: str
+    name: str
+    options: list[str]
+    default: str
+
+
+SELECTS: list[_SelSpec] = [
+    _SelSpec(
+        key="ai_mode",
+        name="AI Moduswahl",
+        options=AI_MODES,
+        default=AI_MODE_WINTER,
+    ),
+    _SelSpec(
+        key="manual_action",
+        name="Manuelle Aktion",
+        options=MANUAL_ACTIONS,
+        default=MANUAL_ACTION_STANDBY,
+    ),
+]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities) -> None:
-    async_add_entities(
-        [
-            ZendureAIModeSelect(entry),
-            ZendureManualActionSelect(entry),
-        ]
-    )
+    coordinator: ZendureSmartFlowCoordinator = hass.data[DOMAIN][entry.entry_id]
+    async_add_entities([ZendureSmartFlowAISelect(coordinator, entry, spec) for spec in SELECTS])
 
 
-class _BaseSelect(SelectEntity):
+class ZendureSmartFlowAISelect(CoordinatorEntity[ZendureSmartFlowCoordinator], SelectEntity):
     _attr_has_entity_name = True
-    _attr_entity_category = EntityCategory.CONFIG
 
-    def __init__(self, entry: ConfigEntry) -> None:
+    def __init__(self, coordinator: ZendureSmartFlowCoordinator, entry: ConfigEntry, spec: _SelSpec) -> None:
+        super().__init__(coordinator)
         self._entry = entry
+        self._spec = spec
+
+        self._attr_unique_id = f"{entry.entry_id}_{spec.key}"
+        self._attr_name = spec.name
+        self._attr_options = list(spec.options)
+
+        # defaults
+        if spec.key == "ai_mode":
+            self.coordinator.ai_mode = spec.default
+        elif spec.key == "manual_action":
+            self.coordinator.manual_action = spec.default
 
     @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": DEVICE_NAME,
-            "manufacturer": DEVICE_MANUFACTURER,
-            "model": DEVICE_MODEL,
-        }
-
-
-class ZendureAIModeSelect(_BaseSelect):
-    _attr_name = "Moduswahl"
-    _attr_icon = "mdi:brain"
-    _attr_options = AI_MODES
-
-    def __init__(self, entry: ConfigEntry) -> None:
-        super().__init__(entry)
-        self._attr_current_option = AI_MODE_AUTO
-        self._attr_suggested_object_id = f"{DOMAIN}_mode"
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._entry.entry_id)},
+            name="Zendure SmartFlow AI",
+            manufacturer="TK-Multimedia / Community",
+            model="SmartFlow AI",
+        )
 
     @property
-    def unique_id(self) -> str:
-        return f"{self._entry.entry_id}_ai_mode"
+    def current_option(self) -> str | None:
+        if self._spec.key == "ai_mode":
+            return self.coordinator.ai_mode
+        if self._spec.key == "manual_action":
+            return self.coordinator.manual_action
+        return None
 
     async def async_select_option(self, option: str) -> None:
-        self._attr_current_option = option
-        self.async_write_ha_state()
+        if option not in self._attr_options:
+            return
 
+        if self._spec.key == "ai_mode":
+            self.coordinator.ai_mode = option
+        elif self._spec.key == "manual_action":
+            self.coordinator.manual_action = option
 
-class ZendureManualActionSelect(_BaseSelect):
-    _attr_name = "Manuelle Aktion"
-    _attr_icon = "mdi:gesture-tap"
-    _attr_options = MANUAL_ACTIONS
-
-    def __init__(self, entry: ConfigEntry) -> None:
-        super().__init__(entry)
-        self._attr_current_option = MANUAL_STANDBY
-        self._attr_suggested_object_id = f"{DOMAIN}_manual_action"
-
-    @property
-    def unique_id(self) -> str:
-        return f"{self._entry.entry_id}_manual_action"
-
-    async def async_select_option(self, option: str) -> None:
-        self._attr_current_option = option
         self.async_write_ha_state()
