@@ -1,17 +1,21 @@
 {
-  "config": {
-    "step": {
-      "user": {
-        "title": "Zendure SmartFlow AI",
-        "description": "Wähle die Sensoren/Entitäten aus. Die Integration erstellt eigene Regler und Modi – ohne externe Helper.",
-        "data": {
-          "soc_entity": "Akkustand (SoC) in %",
-          "pv_entity": "PV-Leistung (W)",
-          "load_entity": "Hausverbrauch (W)",
-          "price_export_entity": "Strompreis-Export (Tibber Datenexport, optional)",
-          "ac_mode_entity": "Zendure AC Mode (Select: Input/Output)",
-          "input_limit_entity": "Zendure Input Limit (Number, W)",
-          "output_limit_entity": "Zendure Output Limit (Number, W)"
+  "entity": {
+    "select": {
+      "ai_mode": {
+        "name": "AI Operating Mode",
+        "options": {
+          "automatic": "Automatic",
+          "summer": "Summer",
+          "winter": "Winter",
+          "manual": "Manual"
+        }
+      },
+      "ai_recommendation": {
+        "name": "AI Recommendation",
+        "options": {
+          "standby": "Standby",
+          "charge": "Charge",
+          "discharge": "Discharge"
         }
       }
     }
