@@ -3,37 +3,17 @@
     "step": {
       "user": {
         "title": "Zendure SmartFlow AI",
-        "description": "Wähle die Sensoren/Entitäten aus, die bei dir vorhanden sind. Der Strompreis-Export ist optional (Sommer/PV-Modus funktioniert auch ohne).",
+        "description": "Wähle die Sensoren/Entitäten aus. Die Integration erstellt eigene Regler und Modi – ohne externe Helper.",
         "data": {
           "soc_entity": "Akkustand (SoC) in %",
           "pv_entity": "PV-Leistung (W)",
           "load_entity": "Hausverbrauch (W)",
           "price_export_entity": "Strompreis-Export (Tibber Datenexport, optional)",
-          "ac_mode_entity": "Zendure AC Mode (Select: input/output)",
+          "ac_mode_entity": "Zendure AC Mode (Select: Input/Output)",
           "input_limit_entity": "Zendure Input Limit (Number, W)",
           "output_limit_entity": "Zendure Output Limit (Number, W)"
         }
       }
-    }
-  },
-  "entity": {
-    "sensor": {
-      "status": { "name": "Status" },
-      "recommendation": { "name": "Steuerungsempfehlung" },
-      "debug": { "name": "Debug" }
-    },
-    "number": {
-      "soc_min": { "name": "SoC Minimum" },
-      "soc_max": { "name": "SoC Maximum" },
-      "max_charge": { "name": "Max. Ladeleistung" },
-      "max_discharge": { "name": "Max. Entladeleistung" },
-      "price_threshold": { "name": "Schwelle: Teuer" },
-      "very_expensive_threshold": { "name": "Schwelle: Sehr teuer" },
-      "freeze_seconds": { "name": "Freeze (Sekunden)" }
-    },
-    "select": {
-      "ai_mode": { "name": "Moduswahl" },
-      "manual_action": { "name": "Manuelle Aktion" }
     }
   }
 }
