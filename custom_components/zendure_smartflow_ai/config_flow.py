@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from typing import Any
-
 import voluptuous as vol
+from typing import Any
 
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
@@ -16,14 +15,14 @@ from .const import (
     CONF_GRID_POWER_ENTITY,
     CONF_GRID_IMPORT_ENTITY,
     CONF_GRID_EXPORT_ENTITY,
+    GRID_MODE_NONE,
+    GRID_MODE_SINGLE,
+    GRID_MODE_SPLIT,
     CONF_PRICE_EXPORT_ENTITY,
     CONF_PRICE_NOW_ENTITY,
     CONF_AC_MODE_ENTITY,
     CONF_INPUT_LIMIT_ENTITY,
     CONF_OUTPUT_LIMIT_ENTITY,
-    GRID_MODE_NONE,
-    GRID_MODE_SINGLE,
-    GRID_MODE_SPLIT,
 )
 
 
@@ -32,7 +31,7 @@ def _find_first_entity(
     domain: str,
     device_class: str | None = None,
     unit: str | None = None,
-) -> str | None:
+):
     reg = er.async_get(hass)
     for ent in reg.entities.values():
         if ent.domain != domain:
@@ -52,19 +51,22 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
+            # Validierung Grid Split
             grid_mode = user_input.get(CONF_GRID_MODE, GRID_MODE_NONE)
             if grid_mode == GRID_MODE_SPLIT:
                 if not user_input.get(CONF_GRID_IMPORT_ENTITY) or not user_input.get(CONF_GRID_EXPORT_ENTITY):
                     errors["base"] = "grid_split_missing"
-            return self.async_create_entry(title="Zendure SmartFlow AI", data=user_input)
+                else:
+                    return self.async_create_entry(title="Zendure SmartFlow AI", data=user_input)
+            else:
+                return self.async_create_entry(title="Zendure SmartFlow AI", data=user_input)
 
         hass = self.hass
 
         soc_guess = _find_first_entity(hass, "sensor", "battery", "%")
         pv_guess = _find_first_entity(hass, "sensor", "power", "W")
-
-        price_now_guess = _find_first_entity(hass, "sensor", None, "€/kWh")
-        price_export_guess = None  # absichtlich leer; viele haben Tibber Export mit Attribut "data"
+        grid_power_guess = _find_first_entity(hass, "sensor", "power", "W")
+        price_guess = _find_first_entity(hass, "sensor", None, "€/kWh")
 
         schema = vol.Schema(
             {
@@ -75,18 +77,18 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
 
-                # Grid optional – wir berechnen Hausverbrauch intern aus PV + Grid (wenn Grid gewählt)
+                # Grid (optional)
                 vol.Required(CONF_GRID_MODE, default=GRID_MODE_NONE): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=[
-                            {"value": GRID_MODE_NONE, "label": "Kein Netzsensor (nur PV / SoC)"},
+                            {"value": GRID_MODE_NONE, "label": "Kein Netzsensor (ohne Hausverbrauchs-Berechnung)"},
                             {"value": GRID_MODE_SINGLE, "label": "Ein Sensor (+ Bezug / – Einspeisung)"},
-                            {"value": GRID_MODE_SPLIT, "label": "Zwei Sensoren (Bezug & Einspeisung getrennt)"},
+                            {"value": GRID_MODE_SPLIT, "label": "Zwei Sensoren (Bezug und Einspeisung getrennt)"},
                         ],
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 ),
-                vol.Optional(CONF_GRID_POWER_ENTITY): selector.EntitySelector(
+                vol.Optional(CONF_GRID_POWER_ENTITY, default=grid_power_guess): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
                 vol.Optional(CONF_GRID_IMPORT_ENTITY): selector.EntitySelector(
@@ -96,15 +98,15 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
 
-                # Preisquellen optional
-                vol.Optional(CONF_PRICE_EXPORT_ENTITY, default=price_export_guess): selector.EntitySelector(
+                # Preis (optional)
+                vol.Optional(CONF_PRICE_EXPORT_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
-                vol.Optional(CONF_PRICE_NOW_ENTITY, default=price_now_guess): selector.EntitySelector(
+                vol.Optional(CONF_PRICE_NOW_ENTITY, default=price_guess): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
 
-                # Zendure Steuer-Entitäten
+                # Zendure Steuerung
                 vol.Required(CONF_AC_MODE_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="select")
                 ),
@@ -117,4 +119,8 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             }
         )
 
-        return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
+        return self.async_show_form(
+            step_id="user",
+            data_schema=schema,
+            errors=errors,
+        )
