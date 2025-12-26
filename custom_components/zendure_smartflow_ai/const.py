@@ -24,6 +24,11 @@ DEFAULT_MAX_DISCHARGE = 700.0
 DEFAULT_PRICE_THRESHOLD = 0.35
 DEFAULT_VERY_EXPENSIVE_THRESHOLD = 0.49
 
+# ==================================================
+# Update / Timing
+# ==================================================
+UPDATE_INTERVAL = 10  # Sekunden
+
 # --------------------
 # Runtime Modes
 # --------------------
