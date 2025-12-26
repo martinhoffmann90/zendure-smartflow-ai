@@ -3,44 +3,64 @@
     "step": {
       "user": {
         "title": "Zendure SmartFlow AI",
-        "description": "Select the sensors/entities available in your setup. The integration creates its own controls and modes – no external helpers required.",
+        "description": "Select the sensors/entities available in your setup. The integration will create its own controls and modes – without external helpers.",
         "data": {
-          "soc_entity": "Battery SoC sensor (%)",
+          "soc_entity": "Battery state of charge (SoC) in %",
           "pv_entity": "PV power (W)",
-          "grid_mode": "Grid sensor setup (optional)",
           "grid_power_entity": "Grid power (+import / –export) (optional)",
-          "grid_import_entity": "Import power (W) (optional, split setup)",
-          "grid_export_entity": "Export power (W) (optional, split setup)",
-          "price_export_entity": "Price export (optional, e.g. Tibber data export)",
+          "grid_import_entity": "Grid import (W) (optional, for split sensors)",
+          "grid_export_entity": "Grid export (W) (optional, for split sensors)",
+          "price_export_entity": "Electricity price export (optional, e.g. Tibber data export)",
           "price_now_entity": "Current price (optional, €/kWh)",
-          "ac_mode_entity": "Zendure AC mode (select: input/output)",
-          "input_limit_entity": "Zendure input limit (number, W)",
-          "output_limit_entity": "Zendure output limit (number, W)"
+          "ac_mode_entity": "Zendure AC Mode (Select: input/output)",
+          "input_limit_entity": "Zendure Input Limit (Number, W)",
+          "output_limit_entity": "Zendure Output Limit (Number, W)",
+          "grid_mode": "Grid sensor setup (optional)"
         }
       }
     },
     "error": {
-      "grid_split_missing": "In \"Two sensors\" mode you must select both import and export sensors."
+      "grid_split_missing": "With \"Two sensors\", both import and export must be selected."
     }
   },
   "entity": {
     "sensor": {
-      "status": { "name": "Status" },
-      "ai_status": { "name": "AI status" },
-      "ai_debug": { "name": "AI debug" },
-      "load": { "name": "House consumption (calculated)" }
+      "status": {
+        "name": "Status"
+      },
+      "ai_status": {
+        "name": "AI status"
+      },
+      "ai_debug": {
+        "name": "AI debug"
+      },
+      "house_load": {
+        "name": "House load"
+      }
     },
     "number": {
-      "soc_min": { "name": "SoC minimum (%)" },
-      "soc_max": { "name": "SoC maximum (%)" },
-      "max_charge": { "name": "Max charge power (W)" },
-      "max_discharge": { "name": "Max discharge power (W)" },
-      "price_threshold": { "name": "Expensive threshold (€/kWh)" },
-      "very_expensive_threshold": { "name": "Very expensive threshold (€/kWh)" }
+      "soc_min": {
+        "name": "SoC minimum (%)"
+      },
+      "soc_max": {
+        "name": "SoC maximum (%)"
+      },
+      "max_charge": {
+        "name": "Max charge power (W)"
+      },
+      "max_discharge": {
+        "name": "Max discharge power (W)"
+      },
+      "price_threshold": {
+        "name": "Expensive threshold (€/kWh)"
+      },
+      "very_expensive_threshold": {
+        "name": "Very expensive threshold (€/kWh)"
+      }
     },
     "select": {
       "ai_mode": {
-        "name": "Zendure SmartFlow AI – Mode",
+        "name": "Zendure SmartFlow AI – Operating mode",
         "options": {
           "automatic": "Automatic",
           "summer": "Summer",
