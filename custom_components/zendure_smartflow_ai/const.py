@@ -43,6 +43,10 @@ CONF_GRID_POWER_ENTITY = "grid_power_entity"
 CONF_GRID_IMPORT_ENTITY = "grid_import_entity"
 CONF_GRID_EXPORT_ENTITY = "grid_export_entity"
 
+# ==================================================
+# Grid Modes (inkl. Legacy / None)
+# ==================================================
+GRID_MODE_NONE = "none"
 GRID_MODE_SINGLE = "single"
 GRID_MODE_SPLIT = "split"
 
