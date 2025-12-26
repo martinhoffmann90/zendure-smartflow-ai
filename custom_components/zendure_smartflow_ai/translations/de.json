@@ -3,10 +3,11 @@
     "step": {
       "user": {
         "title": "Zendure SmartFlow AI",
-        "description": "Wähle die Sensoren/Entitäten aus, die bei dir vorhanden sind. Die Integration erstellt danach ihre eigenen Regler und Modi – ohne externe Helper.",
+        "description": "Wähle die Sensoren/Entitäten aus. Die Integration erstellt eigene Regler, Sensoren und Modi – ohne externe Helper.",
         "data": {
           "soc_entity": "Akkustand (SoC) in %",
           "pv_entity": "PV-Leistung (W)",
+          "grid_mode": "Netzsensor-Setup (optional)",
           "grid_power_entity": "Netzleistung (+Bezug / –Einspeisung) (optional)",
           "grid_import_entity": "Bezug (W) (optional, bei zwei Sensoren)",
           "grid_export_entity": "Einspeisung (W) (optional, bei zwei Sensoren)",
@@ -14,8 +15,7 @@
           "price_now_entity": "Aktueller Preis (optional, €/kWh)",
           "ac_mode_entity": "Zendure AC Mode (Select: input/output)",
           "input_limit_entity": "Zendure Input-Limit (Number, W)",
-          "output_limit_entity": "Zendure Output-Limit (Number, W)",
-          "grid_mode": "Netzsensor-Setup (optional)"
+          "output_limit_entity": "Zendure Output-Limit (Number, W)"
         }
       }
     },
@@ -25,38 +25,20 @@
   },
   "entity": {
     "sensor": {
-      "status": {
-        "name": "Status"
-      },
-      "ai_status": {
-        "name": "KI-Status"
-      },
-      "ai_debug": {
-        "name": "KI-Debug"
-      },
-      "house_load": {
-        "name": "Hausverbrauch"
-      }
+      "status": { "name": "Status" },
+      "ai_status": { "name": "KI-Status" },
+      "ai_debug": { "name": "KI-Debug" },
+      "recommendation": { "name": "Empfehlung" },
+      "house_load": { "name": "Hausverbrauch (berechnet)" },
+      "price_now": { "name": "Aktueller Strompreis" }
     },
     "number": {
-      "soc_min": {
-        "name": "SoC Minimum (%)"
-      },
-      "soc_max": {
-        "name": "SoC Maximum (%)"
-      },
-      "max_charge": {
-        "name": "Max. Ladeleistung (W)"
-      },
-      "max_discharge": {
-        "name": "Max. Entladeleistung (W)"
-      },
-      "price_threshold": {
-        "name": "Teuer-Schwelle (€/kWh)"
-      },
-      "very_expensive_threshold": {
-        "name": "Sehr teuer-Schwelle (€/kWh)"
-      }
+      "soc_min": { "name": "SoC Minimum (%)" },
+      "soc_max": { "name": "SoC Maximum (%)" },
+      "max_charge": { "name": "Max. Ladeleistung (W)" },
+      "max_discharge": { "name": "Max. Entladeleistung (W)" },
+      "price_threshold": { "name": "Teuer-Schwelle (€/kWh)" },
+      "very_expensive_threshold": { "name": "Sehr teuer-Schwelle (€/kWh)" }
     },
     "select": {
       "ai_mode": {
