@@ -3,61 +3,87 @@
     "step": {
       "user": {
         "title": "Zendure SmartFlow AI",
-        "description": "Wähle die Sensoren/Entitäten aus. Die Integration erstellt eigene Regler, Sensoren und Modi – ohne externe Helper.",
+        "description": "Select the entities available in your system. The integration creates its own controls and logic without helpers.",
         "data": {
-          "soc_entity": "Akkustand (SoC) in %",
-          "pv_entity": "PV-Leistung (W)",
-          "grid_mode": "Netzsensor-Setup (optional)",
-          "grid_power_entity": "Netzleistung (+Bezug / –Einspeisung) (optional)",
-          "grid_import_entity": "Bezug (W) (optional, bei zwei Sensoren)",
-          "grid_export_entity": "Einspeisung (W) (optional, bei zwei Sensoren)",
-          "price_export_entity": "Strompreis-Export (optional, z.B. Tibber Datenexport)",
-          "price_now_entity": "Aktueller Preis (optional, €/kWh)",
-          "ac_mode_entity": "Zendure AC Mode (Select: input/output)",
-          "input_limit_entity": "Zendure Input-Limit (Number, W)",
-          "output_limit_entity": "Zendure Output-Limit (Number, W)"
+          "soc_entity": "Battery state of charge (%)",
+          "pv_entity": "PV power (W)",
+          "price_export_entity": "Electricity price export (optional)",
+          "ac_mode_entity": "Zendure AC mode (input / output)",
+          "input_limit_entity": "Zendure input limit (W)",
+          "output_limit_entity": "Zendure output limit (W)"
         }
       }
-    },
-    "error": {
-      "grid_split_missing": "Bei \"Zwei Sensoren\" müssen Bezug und Einspeisung beide ausgewählt werden."
     }
   },
+
   "entity": {
     "sensor": {
-      "status": { "name": "Status" },
-      "ai_status": { "name": "KI-Status" },
-      "ai_debug": { "name": "KI-Debug" },
-      "recommendation": { "name": "Empfehlung" },
-      "house_load": { "name": "Hausverbrauch (berechnet)" },
-      "price_now": { "name": "Aktueller Strompreis" }
+      "status": {
+        "name": "Status"
+      },
+      "ai_status": {
+        "name": "AI status"
+      },
+      "ai_debug": {
+        "name": "AI debug"
+      },
+      "house_load": {
+        "name": "House consumption"
+      }
     },
+
     "number": {
-      "soc_min": { "name": "SoC Minimum (%)" },
-      "soc_max": { "name": "SoC Maximum (%)" },
-      "max_charge": { "name": "Max. Ladeleistung (W)" },
-      "max_discharge": { "name": "Max. Entladeleistung (W)" },
-      "price_threshold": { "name": "Teuer-Schwelle (€/kWh)" },
-      "very_expensive_threshold": { "name": "Sehr teuer-Schwelle (€/kWh)" }
+      "soc_min": {
+        "name": "Minimum SoC (%)"
+      },
+      "soc_max": {
+        "name": "Maximum SoC (%)"
+      },
+      "max_charge": {
+        "name": "Maximum charge power (W)"
+      },
+      "max_discharge": {
+        "name": "Maximum discharge power (W)"
+      },
+      "price_threshold": {
+        "name": "Expensive price threshold (€/kWh)"
+      },
+      "very_expensive_threshold": {
+        "name": "Very expensive price threshold (€/kWh)"
+      }
     },
+
     "select": {
       "ai_mode": {
-        "name": "Zendure SmartFlow AI – Betriebsmodus",
+        "name": "Zendure SmartFlow AI – Operating mode",
         "options": {
-          "automatic": "Automatik",
-          "summer": "Sommer",
+          "automatic": "Automatic",
+          "summer": "Summer",
           "winter": "Winter",
-          "manual": "Manuell"
+          "manual": "Manual"
         }
       },
       "manual_action": {
-        "name": "Zendure SmartFlow AI – Manuelle Aktion",
+        "name": "Zendure SmartFlow AI – Manual action",
         "options": {
           "standby": "Standby",
-          "charge": "Laden",
-          "discharge": "Entladen"
+          "charge": "Charge",
+          "discharge": "Discharge"
         }
       }
+    }
+  },
+
+  "state": {
+    "zendure_smartflow_ai__ai_status": {
+      "init": "Initializing",
+      "idle": "Idle",
+      "charge_surplus": "Charging from PV surplus",
+      "cover_deficit": "Discharging to cover consumption",
+      "price_expensive": "Electricity price is expensive",
+      "price_very_expensive": "Electricity price is very expensive",
+      "manual_override": "Manual override active",
+      "waiting_for_price_window": "Waiting for better price window"
     }
   }
 }
