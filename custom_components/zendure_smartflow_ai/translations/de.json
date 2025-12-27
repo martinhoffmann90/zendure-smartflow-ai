@@ -3,43 +3,56 @@
     "step": {
       "user": {
         "title": "Zendure SmartFlow AI",
-        "description": "Wähle die Sensoren/Entitäten aus. Die Integration erstellt eigene Regler, Sensoren und Modi – ohne externe Helper.",
+        "description": "Wähle die in deinem System vorhandenen Entitäten aus. Die Integration erstellt eigene Regler und Logik – ganz ohne Helper.",
         "data": {
           "soc_entity": "Akkustand (SoC) in %",
           "pv_entity": "PV-Leistung (W)",
-          "grid_mode": "Netzsensor-Setup (optional)",
-          "grid_power_entity": "Netzleistung (+Bezug / –Einspeisung) (optional)",
-          "grid_import_entity": "Bezug (W) (optional, bei zwei Sensoren)",
-          "grid_export_entity": "Einspeisung (W) (optional, bei zwei Sensoren)",
-          "price_export_entity": "Strompreis-Export (optional, z.B. Tibber Datenexport)",
-          "price_now_entity": "Aktueller Preis (optional, €/kWh)",
-          "ac_mode_entity": "Zendure AC Mode (Select: input/output)",
-          "input_limit_entity": "Zendure Input-Limit (Number, W)",
-          "output_limit_entity": "Zendure Output-Limit (Number, W)"
+          "price_export_entity": "Strompreis-Export (optional)",
+          "ac_mode_entity": "Zendure AC-Modus (Input / Output)",
+          "input_limit_entity": "Zendure Eingangsleistung (W)",
+          "output_limit_entity": "Zendure Ausgangsleistung (W)"
         }
       }
-    },
-    "error": {
-      "grid_split_missing": "Bei \"Zwei Sensoren\" müssen Bezug und Einspeisung beide ausgewählt werden."
     }
   },
+
   "entity": {
     "sensor": {
-      "status": { "name": "Status" },
-      "ai_status": { "name": "KI-Status" },
-      "ai_debug": { "name": "KI-Debug" },
-      "recommendation": { "name": "Empfehlung" },
-      "house_load": { "name": "Hausverbrauch (berechnet)" },
-      "price_now": { "name": "Aktueller Strompreis" }
+      "status": {
+        "name": "Status"
+      },
+      "ai_status": {
+        "name": "KI-Status"
+      },
+      "ai_debug": {
+        "name": "KI-Debug"
+      },
+      "house_load": {
+        "name": "Hausverbrauch"
+      }
     },
+
     "number": {
-      "soc_min": { "name": "SoC Minimum (%)" },
-      "soc_max": { "name": "SoC Maximum (%)" },
-      "max_charge": { "name": "Max. Ladeleistung (W)" },
-      "max_discharge": { "name": "Max. Entladeleistung (W)" },
-      "price_threshold": { "name": "Teuer-Schwelle (€/kWh)" },
-      "very_expensive_threshold": { "name": "Sehr teuer-Schwelle (€/kWh)" }
+      "soc_min": {
+        "name": "SoC Minimum (%)"
+      },
+      "soc_max": {
+        "name": "SoC Maximum (%)"
+      },
+      "max_charge": {
+        "name": "Max. Ladeleistung (W)"
+      },
+      "max_discharge": {
+        "name": "Max. Entladeleistung (W)"
+      },
+      "price_threshold": {
+        "name": "Teuer-Schwelle (€/kWh)"
+      },
+      "very_expensive_threshold": {
+        "name": "Sehr teuer-Schwelle (€/kWh)"
+      }
     },
+
     "select": {
       "ai_mode": {
         "name": "Zendure SmartFlow AI – Betriebsmodus",
@@ -58,6 +71,19 @@
           "discharge": "Entladen"
         }
       }
+    }
+  },
+
+  "state": {
+    "zendure_smartflow_ai__ai_status": {
+      "init": "Initialisierung",
+      "idle": "Bereit / Leerlauf",
+      "charge_surplus": "Laden mit PV-Überschuss",
+      "cover_deficit": "Entladen zur Deckung des Hausverbrauchs",
+      "price_expensive": "Strompreis ist teuer",
+      "price_very_expensive": "Strompreis ist sehr teuer",
+      "manual_override": "Manuelle Steuerung aktiv",
+      "waiting_for_price_window": "Warte auf günstigeres Preisfenster"
     }
   }
 }
