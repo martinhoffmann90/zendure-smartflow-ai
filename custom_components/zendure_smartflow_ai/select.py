@@ -6,7 +6,6 @@ from homeassistant.components.select import SelectEntity, SelectEntityDescriptio
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import (
     DOMAIN,
@@ -53,7 +52,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add_entitie
     add_entities([ZendureSmartFlowSelect(entry, coordinator, d) for d in SELECTS])
 
 
-class ZendureSmartFlowSelect(SelectEntity, RestoreEntity):
+class ZendureSmartFlowSelect(SelectEntity):
     _attr_has_entity_name = True
 
     def __init__(self, entry: ConfigEntry, coordinator, description: ZendureSelectEntityDescription) -> None:
@@ -90,7 +89,4 @@ class ZendureSmartFlowSelect(SelectEntity, RestoreEntity):
         self.async_write_ha_state()
 
     async def async_added_to_hass(self) -> None:
-        last = await self.async_get_last_state()
-        if last and last.state in self.options:
-            self.coordinator.runtime_mode[self.entity_description.runtime_key] = last.state
         self.async_on_remove(self.coordinator.async_add_listener(self.async_write_ha_state))
