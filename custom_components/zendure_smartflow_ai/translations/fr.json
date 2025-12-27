@@ -3,26 +3,19 @@
     "step": {
       "user": {
         "title": "Zendure SmartFlow AI",
-        "description": "Sélectionnez les capteurs / entités disponibles. L’intégration crée ses propres réglages, capteurs et modes – sans helpers externes.",
+        "description": "Sélectionnez les entités disponibles dans votre système. L’intégration crée ses propres contrôles et logiques sans helpers.",
         "data": {
-          "soc_entity": "État de charge de la batterie (SoC) en %",
+          "soc_entity": "État de charge de la batterie (%)",
           "pv_entity": "Puissance PV (W)",
-          "grid_mode": "Configuration du réseau (optionnel)",
-          "grid_power_entity": "Puissance réseau (+import / –export) (optionnel)",
-          "grid_import_entity": "Import réseau (W) (optionnel, avec deux capteurs)",
-          "grid_export_entity": "Export réseau (W) (optionnel, avec deux capteurs)",
-          "price_export_entity": "Export des prix de l’électricité (optionnel, ex. Tibber)",
-          "price_now_entity": "Prix actuel (optionnel, €/kWh)",
-          "ac_mode_entity": "Mode AC Zendure (Select : input / output)",
-          "input_limit_entity": "Limite d’entrée Zendure (Number, W)",
-          "output_limit_entity": "Limite de sortie Zendure (Number, W)"
+          "price_export_entity": "Prix de l’électricité (optionnel)",
+          "ac_mode_entity": "Mode AC Zendure (entrée / sortie)",
+          "input_limit_entity": "Puissance d’entrée Zendure (W)",
+          "output_limit_entity": "Puissance de sortie Zendure (W)"
         }
       }
-    },
-    "error": {
-      "grid_split_missing": "Avec « deux capteurs », l’import et l’export doivent tous les deux être sélectionnés."
     }
   },
+
   "entity": {
     "sensor": {
       "status": {
@@ -34,16 +27,11 @@
       "ai_debug": {
         "name": "Debug IA"
       },
-      "recommendation": {
-        "name": "Recommandation"
-      },
       "house_load": {
-        "name": "Consommation du foyer (calculée)"
-      },
-      "price_now": {
-        "name": "Prix actuel de l’électricité"
+        "name": "Consommation du foyer"
       }
     },
+
     "number": {
       "soc_min": {
         "name": "SoC minimum (%)"
@@ -52,18 +40,19 @@
         "name": "SoC maximum (%)"
       },
       "max_charge": {
-        "name": "Puissance de charge max. (W)"
+        "name": "Puissance de charge max (W)"
       },
       "max_discharge": {
-        "name": "Puissance de décharge max. (W)"
+        "name": "Puissance de décharge max (W)"
       },
       "price_threshold": {
-        "name": "Seuil « cher » (€/kWh)"
+        "name": "Seuil prix élevé (€/kWh)"
       },
       "very_expensive_threshold": {
-        "name": "Seuil « très cher » (€/kWh)"
+        "name": "Seuil prix très élevé (€/kWh)"
       }
     },
+
     "select": {
       "ai_mode": {
         "name": "Zendure SmartFlow AI – Mode de fonctionnement",
@@ -82,6 +71,19 @@
           "discharge": "Décharge"
         }
       }
+    }
+  },
+
+  "state": {
+    "zendure_smartflow_ai__ai_status": {
+      "init": "Initialisation",
+      "idle": "Inactif",
+      "charge_surplus": "Charge avec surplus PV",
+      "cover_deficit": "Décharge pour couvrir la consommation",
+      "price_expensive": "Prix de l’électricité élevé",
+      "price_very_expensive": "Prix de l’électricité très élevé",
+      "manual_override": "Commande manuelle active",
+      "waiting_for_price_window": "En attente d’une meilleure fenêtre tarifaire"
     }
   }
 }
