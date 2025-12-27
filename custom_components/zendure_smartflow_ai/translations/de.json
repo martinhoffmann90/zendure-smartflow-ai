@@ -3,63 +3,94 @@
     "step": {
       "user": {
         "title": "Zendure SmartFlow AI",
-        "description": "Wähle die Sensoren aus, die für die KI-Steuerung genutzt werden sollen. Die Integration berechnet Hausverbrauch, PV-Überschuss und Empfehlungen selbst.",
+        "description": "Wähle die Sensoren/Entitäten aus. Hausverbrauch wird intern aus PV + Netzsensor berechnet (kein Helper nötig).",
         "data": {
           "soc_entity": "Akkustand (SoC) in %",
           "pv_entity": "PV-Leistung (W)",
-          "grid_power_entity": "Netzleistung (+Bezug / −Einspeisung)",
-          "price_entity": "Strompreis (€/kWh, optional)",
-          "ac_mode_entity": "Zendure AC-Modus",
-          "input_limit_entity": "Zendure Ladeleistung (W)",
-          "output_limit_entity": "Zendure Entladeleistung (W)"
+          "price_export_entity": "Strompreis-Export (optional, z.B. Tibber Datenexport)",
+          "price_now_entity": "Aktueller Preis (optional, €/kWh)",
+          "ac_mode_entity": "Zendure AC Mode (Select: input/output)",
+          "input_limit_entity": "Zendure Input-Limit (Number, W)",
+          "output_limit_entity": "Zendure Output-Limit (Number, W)",
+          "grid_mode": "Netzsensor-Setup (empfohlen)",
+          "grid_power_entity": "Netzleistung (+Bezug / –Einspeisung) (bei Ein-Sensor-Setup)",
+          "grid_import_entity": "Bezug (W) (bei Zwei-Sensor-Setup)",
+          "grid_export_entity": "Einspeisung (W) (bei Zwei-Sensor-Setup)"
         }
       }
+    },
+    "error": {
+      "grid_split_missing": "Bei \"Zwei Sensoren\" müssen Bezug und Einspeisung beide ausgewählt werden."
     }
   },
-
   "entity": {
     "sensor": {
       "status": {
-        "name": "Systemstatus",
+        "name": "Status",
         "state": {
-          "init": "Initialisierung",
-          "ok": "Aktiv",
+          "init": "Init",
+          "ok": "OK",
+          "sensor_invalid": "Sensor ungültig",
+          "price_invalid": "Preis ungültig",
           "error": "Fehler"
         }
       },
       "ai_status": {
         "name": "KI-Status",
         "state": {
-          "standby": "Bereitschaft",
-          "pv_surplus": "PV-Überschuss erkannt",
-          "cover_deficit": "Netzbezug wird gedeckt",
-          "charging": "Akku wird geladen",
-          "discharging": "Akku wird entladen"
+          "standby": "Standby",
+          "pv_charge": "PV-Überschuss laden",
+          "cover_deficit": "Bezug ausgleichen",
+          "price_peak": "Preisspitze",
+          "manual_active": "Manuell aktiv",
+          "waiting": "Warten"
         }
       },
       "recommendation": {
-        "name": "KI-Empfehlung",
+        "name": "Steuerungsempfehlung",
         "state": {
-          "standby": "Keine Aktion empfohlen",
-          "charge": "Laden empfohlen",
-          "discharge": "Entladen empfohlen"
+          "standby": "Standby",
+          "charge": "Laden",
+          "discharge": "Entladen"
         }
       },
+      "ai_debug": {
+        "name": "KI-Debug"
+      },
       "house_load": {
-        "name": "Hausverbrauch"
+        "name": "Hausverbrauch (berechnet)"
       },
       "price_now": {
         "name": "Aktueller Strompreis"
       }
     },
-
+    "number": {
+      "soc_min": {
+        "name": "SoC Minimum (%)"
+      },
+      "soc_max": {
+        "name": "SoC Maximum (%)"
+      },
+      "max_charge": {
+        "name": "Max. Ladeleistung (W)"
+      },
+      "max_discharge": {
+        "name": "Max. Entladeleistung (W)"
+      },
+      "price_threshold": {
+        "name": "Teuer-Schwelle (€/kWh)"
+      },
+      "very_expensive_threshold": {
+        "name": "Sehr teuer-Schwelle (€/kWh)"
+      }
+    },
     "select": {
       "ai_mode": {
         "name": "Zendure SmartFlow AI – Betriebsmodus",
         "options": {
           "automatic": "Automatik",
-          "summer": "Sommermodus",
-          "winter": "Wintermodus",
+          "summer": "Sommer",
+          "winter": "Winter",
           "manual": "Manuell"
         }
       },
