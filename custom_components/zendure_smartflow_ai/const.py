@@ -8,9 +8,9 @@ from homeassistant.const import Platform
 DOMAIN = "zendure_smartflow_ai"
 
 INTEGRATION_NAME = "Zendure SmartFlow AI"
-INTEGRATION_MANUFACTURER = "TK-Multimedia"
+INTEGRATION_MANUFACTURER = "PalmManiac"
 INTEGRATION_MODEL = "SmartFlow AI"
-INTEGRATION_VERSION = "0.13.0"
+INTEGRATION_VERSION = "0.13.1"
 
 # ==================================================
 # Platforms
