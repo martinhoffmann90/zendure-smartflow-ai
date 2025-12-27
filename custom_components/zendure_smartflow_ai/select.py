@@ -23,7 +23,6 @@ from .const import (
 @dataclass(frozen=True, kw_only=True)
 class ZendureSelectEntityDescription(SelectEntityDescription):
     runtime_key: str
-    options_list: list[str]
     default_option: str
 
 
@@ -32,7 +31,7 @@ SELECTS: tuple[ZendureSelectEntityDescription, ...] = (
         key="ai_mode",
         translation_key="ai_mode",
         runtime_key="ai_mode",
-        options_list=AI_MODES,
+        options=AI_MODES,            # ✅ HIER, nicht später setzen
         default_option=AI_MODE_AUTOMATIC,
         icon="mdi:robot",
     ),
@@ -40,22 +39,34 @@ SELECTS: tuple[ZendureSelectEntityDescription, ...] = (
         key="manual_action",
         translation_key="manual_action",
         runtime_key="manual_action",
-        options_list=MANUAL_ACTIONS,
+        options=MANUAL_ACTIONS,      # ✅ HIER
         default_option=MANUAL_STANDBY,
         icon="mdi:gesture-tap-button",
     ),
 )
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add_entities: AddEntitiesCallback) -> None:
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    add_entities: AddEntitiesCallback,
+) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    add_entities([ZendureSmartFlowSelect(entry, coordinator, d) for d in SELECTS])
+    add_entities(
+        ZendureSmartFlowSelect(entry, coordinator, description)
+        for description in SELECTS
+    )
 
 
 class ZendureSmartFlowSelect(SelectEntity):
     _attr_has_entity_name = True
 
-    def __init__(self, entry: ConfigEntry, coordinator, description: ZendureSelectEntityDescription) -> None:
+    def __init__(
+        self,
+        entry: ConfigEntry,
+        coordinator,
+        description: ZendureSelectEntityDescription,
+    ) -> None:
         self.entity_description = description
         self.coordinator = coordinator
         self._entry = entry
@@ -69,7 +80,7 @@ class ZendureSmartFlowSelect(SelectEntity):
             "sw_version": INTEGRATION_VERSION,
         }
 
-        self._attr_options = list(description.options_list)
+        # ⛔ KEIN _attr_options MEHR HIER!
 
         if description.runtime_key not in coordinator.runtime_mode:
             coordinator.runtime_mode[description.runtime_key] = description.default_option
@@ -89,4 +100,6 @@ class ZendureSmartFlowSelect(SelectEntity):
         self.async_write_ha_state()
 
     async def async_added_to_hass(self) -> None:
-        self.async_on_remove(self.coordinator.async_add_listener(self.async_write_ha_state))
+        self.async_on_remove(
+            self.coordinator.async_add_listener(self.async_write_ha_state)
+        )
