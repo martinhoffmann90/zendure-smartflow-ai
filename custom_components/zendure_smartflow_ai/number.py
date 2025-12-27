@@ -6,6 +6,7 @@ from homeassistant.components.number import NumberEntity, NumberEntityDescriptio
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import (
     DOMAIN,
@@ -13,12 +14,14 @@ from .const import (
     INTEGRATION_MANUFACTURER,
     INTEGRATION_MODEL,
     INTEGRATION_VERSION,
+    # settings keys
     SETTING_SOC_MIN,
     SETTING_SOC_MAX,
     SETTING_MAX_CHARGE,
     SETTING_MAX_DISCHARGE,
     SETTING_PRICE_THRESHOLD,
     SETTING_VERY_EXPENSIVE_THRESHOLD,
+    # defaults
     DEFAULT_SOC_MIN,
     DEFAULT_SOC_MAX,
     DEFAULT_MAX_CHARGE,
@@ -27,9 +30,11 @@ from .const import (
     DEFAULT_VERY_EXPENSIVE_THRESHOLD,
 )
 
+
 @dataclass(frozen=True, kw_only=True)
 class ZendureNumberEntityDescription(NumberEntityDescription):
     setting_key: str
+    default: float
 
 
 NUMBERS: tuple[ZendureNumberEntityDescription, ...] = (
@@ -37,85 +42,77 @@ NUMBERS: tuple[ZendureNumberEntityDescription, ...] = (
         key="soc_min",
         translation_key="soc_min",
         setting_key=SETTING_SOC_MIN,
-        icon="mdi:battery-10",
+        default=DEFAULT_SOC_MIN,
         native_min_value=0,
         native_max_value=100,
         native_step=1,
+        icon="mdi:battery-10",
         native_unit_of_measurement="%",
     ),
     ZendureNumberEntityDescription(
         key="soc_max",
         translation_key="soc_max",
         setting_key=SETTING_SOC_MAX,
-        icon="mdi:battery-90",
+        default=DEFAULT_SOC_MAX,
         native_min_value=0,
         native_max_value=100,
         native_step=1,
+        icon="mdi:battery",
         native_unit_of_measurement="%",
     ),
     ZendureNumberEntityDescription(
         key="max_charge",
         translation_key="max_charge",
         setting_key=SETTING_MAX_CHARGE,
-        icon="mdi:flash",
+        default=DEFAULT_MAX_CHARGE,
         native_min_value=0,
         native_max_value=2400,
-        native_step=10,
+        native_step=1,
+        icon="mdi:battery-arrow-up",
         native_unit_of_measurement="W",
     ),
     ZendureNumberEntityDescription(
         key="max_discharge",
         translation_key="max_discharge",
         setting_key=SETTING_MAX_DISCHARGE,
-        icon="mdi:flash-outline",
+        default=DEFAULT_MAX_DISCHARGE,
         native_min_value=0,
         native_max_value=2400,
-        native_step=10,
+        native_step=1,
+        icon="mdi:battery-arrow-down",
         native_unit_of_measurement="W",
     ),
     ZendureNumberEntityDescription(
         key="price_threshold",
         translation_key="price_threshold",
         setting_key=SETTING_PRICE_THRESHOLD,
-        icon="mdi:currency-eur",
+        default=DEFAULT_PRICE_THRESHOLD,
         native_min_value=0,
-        native_max_value=2.0,
-        native_step=0.01,
+        native_max_value=2,
+        native_step=0.001,
+        icon="mdi:currency-eur",
         native_unit_of_measurement="€/kWh",
     ),
     ZendureNumberEntityDescription(
         key="very_expensive_threshold",
         translation_key="very_expensive_threshold",
         setting_key=SETTING_VERY_EXPENSIVE_THRESHOLD,
-        icon="mdi:alert",
+        default=DEFAULT_VERY_EXPENSIVE_THRESHOLD,
         native_min_value=0,
-        native_max_value=2.0,
-        native_step=0.01,
+        native_max_value=2,
+        native_step=0.001,
+        icon="mdi:alert",
         native_unit_of_measurement="€/kWh",
     ),
 )
 
 
-DEFAULTS = {
-    SETTING_SOC_MIN: DEFAULT_SOC_MIN,
-    SETTING_SOC_MAX: DEFAULT_SOC_MAX,
-    SETTING_MAX_CHARGE: DEFAULT_MAX_CHARGE,
-    SETTING_MAX_DISCHARGE: DEFAULT_MAX_DISCHARGE,
-    SETTING_PRICE_THRESHOLD: DEFAULT_PRICE_THRESHOLD,
-    SETTING_VERY_EXPENSIVE_THRESHOLD: DEFAULT_VERY_EXPENSIVE_THRESHOLD,
-}
-
-
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add_entities: AddEntitiesCallback) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    # Init defaults once (so coordinator has values)
-    for k, v in DEFAULTS.items():
-        coordinator.settings.setdefault(k, float(v))
-
     add_entities([ZendureSmartFlowNumber(entry, coordinator, d) for d in NUMBERS])
 
 
-class ZendureSmartFlowNumber(NumberEntity):
+class ZendureSmartFlowNumber(NumberEntity, RestoreEntity):
     _attr_has_entity_name = True
 
     def __init__(self, entry: ConfigEntry, coordinator, description: ZendureNumberEntityDescription) -> None:
@@ -132,17 +129,26 @@ class ZendureSmartFlowNumber(NumberEntity):
             "sw_version": INTEGRATION_VERSION,
         }
 
+        if description.setting_key not in coordinator.runtime_settings:
+            coordinator.runtime_settings[description.setting_key] = float(description.default)
+
     @property
     def available(self) -> bool:
         return self.coordinator.last_update_success
 
     @property
     def native_value(self) -> float | None:
-        return float(self.coordinator.settings.get(self.entity_description.setting_key, 0.0))
+        return float(self.coordinator.runtime_settings.get(self.entity_description.setting_key, self.entity_description.default))
 
     async def async_set_native_value(self, value: float) -> None:
-        self.coordinator.settings[self.entity_description.setting_key] = float(value)
+        self.coordinator.runtime_settings[self.entity_description.setting_key] = float(value)
         self.async_write_ha_state()
 
     async def async_added_to_hass(self) -> None:
+        last = await self.async_get_last_state()
+        if last and last.state not in (None, "unknown", "unavailable"):
+            try:
+                self.coordinator.runtime_settings[self.entity_description.setting_key] = float(str(last.state).replace(",", "."))
+            except Exception:
+                pass
         self.async_on_remove(self.coordinator.async_add_listener(self.async_write_ha_state))
