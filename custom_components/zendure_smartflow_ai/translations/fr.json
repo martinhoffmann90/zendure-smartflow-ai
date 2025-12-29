@@ -1,75 +1,32 @@
 {
   "config": {
+    "error": {
+      "grid_split_missing": "Avec « deux capteurs », l’import et l’export doivent être sélectionnés."
+    },
     "step": {
       "user": {
         "title": "Zendure SmartFlow AI",
-        "description": "Sélectionnez les entités disponibles. L’intégration crée ensuite ses propres réglages et modes – sans helpers externes.",
+        "description": "Sélectionnez les capteurs/entités. La consommation de la maison est calculée en interne (aucun helper nécessaire). Les prix sont optionnels.",
         "data": {
-          "soc_entity": "État de charge (SoC) en %",
+          "soc_entity": "Niveau de batterie (SoC) en %",
           "pv_entity": "Puissance PV (W)",
+          "price_export_entity": "Export du prix (optionnel, ex. export Tibber)",
           "price_now_entity": "Prix actuel (optionnel, €/kWh)",
-          "price_export_entity": "Export prix (optionnel, ex. export Tibber)",
-          "grid_mode": "Configuration capteurs réseau",
-          "grid_power_entity": "Puissance réseau (+import / –export) (optionnel)",
-          "grid_import_entity": "Import (W) (optionnel, mode 2 capteurs)",
-          "grid_export_entity": "Export (W) (optionnel, mode 2 capteurs)",
-          "ac_mode_entity": "Zendure AC mode (select: input/output)",
-          "input_limit_entity": "Limite d’entrée Zendure (W)",
-          "output_limit_entity": "Limite de sortie Zendure (W)"
+          "ac_mode_entity": "Mode AC Zendure (Select: input/output)",
+          "input_limit_entity": "Limite d’entrée Zendure (Number, W)",
+          "output_limit_entity": "Limite de sortie Zendure (Number, W)",
+          "grid_mode": "Configuration capteur réseau (recommandé)",
+          "grid_power_entity": "Puissance réseau (+import / –export)",
+          "grid_import_entity": "Import (W) (avec deux capteurs)",
+          "grid_export_entity": "Export (W) (avec deux capteurs)"
         }
       }
-    },
-    "error": {
-      "grid_split_missing": "Pour « Deux capteurs », l’import et l’export doivent être sélectionnés."
     }
   },
   "entity": {
-    "sensor": {
-      "status": {
-        "name": "Statut",
-        "options": {
-          "init": "Init",
-          "ok": "OK",
-          "sensor_invalid": "Capteur invalide",
-          "price_missing": "Prix manquant"
-        }
-      },
-      "ai_status": {
-        "name": "Statut IA",
-        "options": {
-          "standby": "Veille",
-          "charge_surplus": "Charger (surplus PV)",
-          "cover_deficit": "Couvrir le déficit",
-          "very_expensive": "Très cher",
-          "profit_margin": "Marge atteinte",
-          "manual": "Manuel"
-        }
-      },
-      "recommendation": {
-        "name": "Recommandation",
-        "options": {
-          "standby": "Veille",
-          "charge": "Charger",
-          "discharge": "Décharger"
-        }
-      },
-      "ai_debug": { "name": "Debug IA" },
-      "house_load": { "name": "Consommation maison" },
-      "price_now": { "name": "Prix actuel" },
-      "avg_charge_price": { "name": "Prix moyen de charge" },
-      "total_profit": { "name": "Économies / profit cumulés" }
-    },
-    "number": {
-      "soc_min": { "name": "SoC minimum (%)" },
-      "soc_max": { "name": "SoC maximum (%)" },
-      "max_charge": { "name": "Puissance max de charge (W)" },
-      "max_discharge": { "name": "Puissance max de décharge (W)" },
-      "very_expensive_threshold": { "name": "Seuil « très cher » (€/kWh)" },
-      "profit_margin_percent": { "name": "Marge de profit (%)" }
-    },
     "select": {
       "ai_mode": {
-        "name": "SmartFlow AI – Mode",
+        "name": "Mode de fonctionnement",
         "options": {
           "automatic": "Automatique",
           "summer": "Été",
@@ -78,13 +35,61 @@
         }
       },
       "manual_action": {
-        "name": "SmartFlow AI – Action manuelle",
+        "name": "Action manuelle",
         "options": {
           "standby": "Veille",
           "charge": "Charger",
           "discharge": "Décharger"
         }
       }
+    },
+    "number": {
+      "soc_min": { "name": "SoC minimum (%)" },
+      "soc_max": { "name": "SoC maximum (%)" },
+      "max_charge": { "name": "Puissance de charge max (W)" },
+      "max_discharge": { "name": "Puissance de décharge max (W)" },
+      "price_threshold": { "name": "Seuil « cher » (€/kWh)" },
+      "very_expensive_threshold": { "name": "Seuil « très cher » (€/kWh)" },
+      "emergency_soc": { "name": "Charge d’urgence dès SoC (%)" },
+      "emergency_charge_w": { "name": "Puissance de charge d’urgence (W)" },
+      "profit_margin_pct": { "name": "Marge de profit pour décharge (%)" }
+    },
+    "sensor": {
+      "status": {
+        "name": "Statut",
+        "state": {
+          "init": "Initialisation",
+          "ok": "OK",
+          "sensor_invalid": "Capteur invalide",
+          "price_invalid": "Prix invalide"
+        }
+      },
+      "ai_status": {
+        "name": "Statut IA",
+        "state": {
+          "standby": "Veille",
+          "charge_surplus": "Charger sur surplus PV",
+          "cover_deficit": "Compenser l’import réseau",
+          "expensive_discharge": "Cher – décharger",
+          "very_expensive_force": "Très cher – décharge forcée",
+          "emergency_charge": "Charge d’urgence active",
+          "manual": "Mode manuel"
+        }
+      },
+      "recommendation": {
+        "name": "Recommandation",
+        "state": {
+          "standby": "Veille",
+          "charge": "Charger",
+          "discharge": "Décharger",
+          "emergency_charge": "Charge d’urgence"
+        }
+      },
+      "ai_debug": { "name": "Debug IA" },
+      "house_load": { "name": "Consommation maison (calculée)" },
+      "price_now": { "name": "Prix actuel" },
+      "avg_charge_price": { "name": "Prix moyen de charge" },
+      "profit_eur": { "name": "Gain / économie (total)" }
     }
   }
 }
