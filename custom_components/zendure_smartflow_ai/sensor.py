@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from homeassistant.components.sensor import SensorEntity, SensorEntityDescription, SensorDeviceClass
+from homeassistant.components.sensor import (
+    SensorEntity,
+    SensorEntityDescription,
+    SensorDeviceClass,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -13,9 +17,9 @@ from .const import (
     INTEGRATION_MANUFACTURER,
     INTEGRATION_MODEL,
     INTEGRATION_VERSION,
-    ENUM_STATUS,
-    ENUM_AI_STATUS,
-    ENUM_RECOMMENDATION,
+    STATUS_ENUMS,
+    AI_STATUS_ENUMS,
+    RECO_ENUMS,
 )
 
 
@@ -25,13 +29,14 @@ class ZendureSensorEntityDescription(SensorEntityDescription):
 
 
 SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
+    # ENUM states -> translated via strings/de/fr "state" mapping
     ZendureSensorEntityDescription(
         key="status",
         translation_key="status",
         runtime_key="status",
         icon="mdi:power-plug",
         device_class=SensorDeviceClass.ENUM,
-        options=ENUM_STATUS,
+        options=STATUS_ENUMS,
     ),
     ZendureSensorEntityDescription(
         key="ai_status",
@@ -39,7 +44,7 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         runtime_key="ai_status",
         icon="mdi:robot",
         device_class=SensorDeviceClass.ENUM,
-        options=ENUM_AI_STATUS,
+        options=AI_STATUS_ENUMS,
     ),
     ZendureSensorEntityDescription(
         key="recommendation",
@@ -47,14 +52,16 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         runtime_key="recommendation",
         icon="mdi:lightbulb-outline",
         device_class=SensorDeviceClass.ENUM,
-        options=ENUM_RECOMMENDATION,
+        options=RECO_ENUMS,
     ),
+    # Debug remains raw (string)
     ZendureSensorEntityDescription(
         key="ai_debug",
         translation_key="ai_debug",
         runtime_key="debug",
         icon="mdi:bug",
     ),
+    # Numeric sensors
     ZendureSensorEntityDescription(
         key="house_load",
         translation_key="house_load",
@@ -77,10 +84,10 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         native_unit_of_measurement="€/kWh",
     ),
     ZendureSensorEntityDescription(
-        key="total_profit",
-        translation_key="total_profit",
-        runtime_key="total_profit",
-        icon="mdi:cash-plus",
+        key="profit_eur",
+        translation_key="profit_eur",
+        runtime_key="profit_eur",
+        icon="mdi:cash",
         native_unit_of_measurement="€",
     ),
 )
@@ -88,7 +95,7 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add_entities: AddEntitiesCallback) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    add_entities(ZendureSmartFlowSensor(entry, coordinator, d) for d in SENSORS)
+    add_entities([ZendureSmartFlowSensor(entry, coordinator, d) for d in SENSORS])
 
 
 class ZendureSmartFlowSensor(SensorEntity):
@@ -115,25 +122,25 @@ class ZendureSmartFlowSensor(SensorEntity):
     @property
     def native_value(self):
         data = self.coordinator.data or {}
-        details = data.get("details") or {}
         key = self.entity_description.runtime_key
 
+        details = data.get("details") or {}
+
         if key == "house_load":
-            return details.get("load")
+            return details.get("house_load")
         if key == "price_now":
             return details.get("price_now")
         if key == "avg_charge_price":
             return details.get("avg_charge_price")
-        if key == "total_profit":
-            return details.get("total_profit_eur")
+        if key == "profit_eur":
+            return details.get("profit_eur")
 
         return data.get(key)
 
     @property
     def extra_state_attributes(self):
         data = self.coordinator.data or {}
-        # For transparency: attach details to key sensors
-        if self.entity_description.key in ("ai_debug", "ai_status", "recommendation", "status"):
+        if self.entity_description.key in ("ai_status", "recommendation", "status", "ai_debug"):
             return data.get("details")
         return None
 
