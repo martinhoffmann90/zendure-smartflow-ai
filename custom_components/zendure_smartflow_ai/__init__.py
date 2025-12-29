@@ -10,6 +10,8 @@ from .coordinator import ZendureSmartFlowCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
+# Laufzeit-Settings für Number-Entities (persistent über HA)
+self.runtime_settings: dict[str, float] = dict(entry.options)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
