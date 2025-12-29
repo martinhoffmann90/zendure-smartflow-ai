@@ -101,3 +101,15 @@
     }
   }
 }
+{
+  "entity": {
+    "sensor": {
+      "avg_charge_price": {
+        "name": "Prix moyen de charge"
+      },
+      "profit_eur": {
+        "name": "Gain / économie (total)"
+      }
+    }
+  }
+}
