@@ -5,7 +5,7 @@
     "step": {
       "user": {
         "title": "Set up Zendure SmartFlow AI",
-        "description": "Connect your Zendure and energy sensors for intelligent battery control."
+        "description": "Connect your Zendure and energy sensors for intelligent control."
       }
     }
   },
@@ -32,30 +32,14 @@
     },
 
     "number": {
-      "soc_min": {
-        "name": "SoC minimum"
-      },
-      "soc_max": {
-        "name": "SoC maximum"
-      },
-      "max_charge": {
-        "name": "Maximum charge power"
-      },
-      "max_discharge": {
-        "name": "Maximum discharge power"
-      },
-      "emergency_charge": {
-        "name": "Emergency charge power"
-      },
-      "emergency_soc": {
-        "name": "Emergency charge from SoC"
-      },
-      "very_expensive_threshold": {
-        "name": "Very expensive threshold"
-      },
-      "profit_margin_pct": {
-        "name": "Profit margin"
-      }
+      "soc_min": { "name": "SoC minimum" },
+      "soc_max": { "name": "SoC maximum" },
+      "max_charge": { "name": "Max charge power" },
+      "max_discharge": { "name": "Max discharge power" },
+      "emergency_charge": { "name": "Emergency charge power" },
+      "emergency_soc": { "name": "Emergency charge below SoC" },
+      "very_expensive_threshold": { "name": "Very expensive threshold" },
+      "profit_margin_pct": { "name": "Profit margin" }
     },
 
     "sensor": {
@@ -89,27 +73,12 @@
           "emergency": "Emergency charge"
         }
       },
-      "ai_debug": {
-        "name": "AI debug"
-      },
-      "house_load": {
-        "name": "House load"
-      },
-      "price_now": {
-        "name": "Current electricity price"
-      }
-    }
-  }
-}
-{
-  "entity": {
-    "sensor": {
-      "avg_charge_price": {
-        "name": "Average battery charge price"
-      },
-      "profit_eur": {
-        "name": "Profit / savings (total)"
-      }
+      "ai_debug": { "name": "AI debug" },
+      "house_load": { "name": "House load" },
+      "price_now": { "name": "Current electricity price" },
+
+      "avg_charge_price": { "name": "Average battery charge price" },
+      "profit_eur": { "name": "Profit / savings (total)" }
     }
   }
 }
