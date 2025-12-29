@@ -128,7 +128,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.entry = entry
 
         # coordinator.py – im __init__()
-
         self.runtime_settings: dict[str, float] = {
             SETTING_SOC_MIN: entry.options.get(SETTING_SOC_MIN, DEFAULT_SOC_MIN),
             SETTING_SOC_MAX: entry.options.get(SETTING_SOC_MAX, DEFAULT_SOC_MAX),
@@ -147,7 +146,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 SETTING_PROFIT_MARGIN_PCT, DEFAULT_PROFIT_MARGIN_PCT
             ),
         }
-        
+
         data = entry.data or {}
 
         self.entities = EntityIds(
@@ -173,10 +172,14 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "manual_action": MANUAL_STANDBY,
         }
 
-        # persistent analytics
+        # persistent analytics + emergency latch
         self._store = Store(hass, STORE_VERSION, f"{DOMAIN}.{entry.entry_id}")
         self._persist: dict[str, Any] = {
             "runtime_mode": dict(self.runtime_mode),
+
+            # ✅ NEW: emergency latch (stays active until soc_min is reached)
+            "emergency_active": False,
+
             "avg_charge_price": None,     # €/kWh
             "charged_kwh": 0.0,
             "discharged_kwh": 0.0,
@@ -351,7 +354,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             max_discharge = self._get_setting(SETTING_MAX_DISCHARGE, DEFAULT_MAX_DISCHARGE)
 
             expensive = self._get_setting(SETTING_PRICE_THRESHOLD, DEFAULT_PRICE_THRESHOLD)
-            very_expensive = self._get_setting(SETTING_VERY_EXPENSIVE_THRESHOLD, DEFAULT_VERY_EXPENSIVE_THRESHOLD)
+            very_expensive = self._get_setting(
+                SETTING_VERY_EXPENSIVE_THRESHOLD, DEFAULT_VERY_EXPENSIVE_THRESHOLD
+            )
 
             emergency_soc = self._get_setting(SETTING_EMERGENCY_SOC, DEFAULT_EMERGENCY_SOC)
             emergency_w = self._get_setting(SETTING_EMERGENCY_CHARGE_W, DEFAULT_EMERGENCY_CHARGE_W)
@@ -373,6 +378,17 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             elif grid_import is not None:
                 deficit = float(grid_import)
 
+            # --------------------------------------------------
+            # ✅ NEW: Emergency latch logic
+            # Trigger at emergency_soc, keep active until soc_min reached
+            # --------------------------------------------------
+            if soc <= emergency_soc:
+                self._persist["emergency_active"] = True
+
+            if self._persist.get("emergency_active") and soc >= soc_min:
+                # reached safe minimum -> exit emergency
+                self._persist["emergency_active"] = False
+
             # default outputs
             status = STATUS_OK
             ai_status = AI_STATUS_STANDBY
@@ -385,9 +401,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             manual_action = self.runtime_mode.get("manual_action", MANUAL_STANDBY)
 
             # -----------------------------
-            # SAFETY: Emergency charge
+            # SAFETY: Emergency charge (latched)
             # -----------------------------
-            if soc <= emergency_soc:
+            if self._persist.get("emergency_active"):
                 ai_status = AI_STATUS_EMERGENCY_CHARGE
                 recommendation = RECO_EMERGENCY
                 ac_mode = ZENDURE_MODE_INPUT
@@ -417,7 +433,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         recommendation = RECO_DISCHARGE
                         ac_mode = ZENDURE_MODE_OUTPUT
                         in_w = 0.0
-                        # cover full grid import if possible (no 50% bug)
                         target = deficit if deficit is not None else max_discharge
                         out_w = min(max_discharge, max(target or 0.0, 0.0))
 
@@ -425,9 +440,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     # -----------------------------
                     # AUTOMATIC / SUMMER / WINTER
                     # -----------------------------
-                    # SUMMER: prioritize PV surplus charge, cover deficit only if "very expensive"
-                    # WINTER: price-based, cover deficit when expensive
-                    # AUTOMATIC: hybrid (surplus charge + cover deficit when expensive)
                     is_summer = ai_mode in (AI_MODE_SUMMER,)
                     is_winter = ai_mode in (AI_MODE_WINTER,)
                     is_auto = ai_mode in (AI_MODE_AUTOMATIC,)
@@ -441,16 +453,12 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         out_w = 0.0
 
                     # 2) Price-based discharge
-                    # price is optional; if missing we won't do price logic (summer still works)
                     if price_now is None:
                         if (is_winter or is_auto) and (deficit is not None and deficit > 0) and soc > soc_min:
-                            # without price, auto/winter can still cover deficit if you want; keep conservative:
-                            # we do NOT cover deficit without price in auto/winter
                             pass
                         else:
                             status = STATUS_OK
                     else:
-                        # VERY EXPENSIVE => always discharge (if SoC allows)
                         if price_now >= very_expensive and soc > soc_min and (deficit is not None and deficit > 0):
                             ai_status = AI_STATUS_VERY_EXPENSIVE_FORCE
                             recommendation = RECO_DISCHARGE
@@ -458,7 +466,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             in_w = 0.0
                             out_w = min(max_discharge, float(deficit))
 
-                        # EXPENSIVE discharge depending on mode
                         elif price_now >= expensive and soc > soc_min and (deficit is not None and deficit > 0):
                             if is_winter or is_auto:
                                 ai_status = AI_STATUS_EXPENSIVE_DISCHARGE
@@ -467,14 +474,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                                 in_w = 0.0
                                 out_w = min(max_discharge, float(deficit))
                             else:
-                                # summer: do not discharge on "expensive", only on "very expensive"
                                 pass
-
-                        # Cover deficit (cheap-ish) – only if you explicitly want; we keep this conservative:
-                        # Auto: cover small deficit only when battery is high AND no PV expected (not implemented here)
-                        # => keep off to avoid unexpected discharge
                         else:
-                            # standby unless surplus charge already set
                             if ai_status == AI_STATUS_STANDBY:
                                 recommendation = RECO_STANDBY
 
@@ -486,9 +487,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # -----------------------------
             # Apply hardware setpoints
-            # Always set both limits to avoid Zendure “remembering” old values.
             # -----------------------------
-            # Important: when output, input must be zero; when input, output must be zero.
             if ac_mode == ZENDURE_MODE_OUTPUT:
                 in_w = 0.0
             if ac_mode == ZENDURE_MODE_INPUT:
@@ -511,13 +510,11 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if dt_s is None or dt_s <= 0:
                 dt_s = UPDATE_INTERVAL
 
-            # Estimate energy moved
             charged_kwh = float(self._persist.get("charged_kwh") or 0.0)
             discharged_kwh = float(self._persist.get("discharged_kwh") or 0.0)
             profit_eur = float(self._persist.get("profit_eur") or 0.0)
             avg_charge_price = self._persist.get("avg_charge_price")
 
-            # Charging: if PV surplus charge, treat cost as 0.0, otherwise use price_now if available else None
             if ac_mode == ZENDURE_MODE_INPUT and in_w > 0:
                 e_kwh = (in_w * dt_s) / 3600000.0
                 charged_kwh += e_kwh
@@ -531,20 +528,17 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     if avg_charge_price is None:
                         avg_charge_price = float(c_price)
                     else:
-                        # weighted average
-                        # approx: use energy as weight
                         prev_e = max(charged_kwh - e_kwh, 0.0)
-                        avg_charge_price = ((avg_charge_price * prev_e) + (float(c_price) * e_kwh)) / max(charged_kwh, 1e-9)
+                        avg_charge_price = (
+                            (avg_charge_price * prev_e) + (float(c_price) * e_kwh)
+                        ) / max(charged_kwh, 1e-9)
 
-            # Discharging: estimate profit as avoided cost (price_now) minus avg charge price
             if ac_mode == ZENDURE_MODE_OUTPUT and out_w > 0:
                 e_kwh = (out_w * dt_s) / 3600000.0
                 discharged_kwh += e_kwh
 
                 if price_now is not None and avg_charge_price is not None:
                     delta = float(price_now) - float(avg_charge_price)
-                    # apply margin rule (placeholder, for later smarter logic)
-                    # current: only count positive delta as profit
                     if delta > 0:
                         profit_eur += e_kwh * delta
 
@@ -578,6 +572,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
                 "emergency_soc": emergency_soc,
                 "emergency_charge_w": emergency_w,
+                "emergency_active": bool(self._persist.get("emergency_active")),
 
                 "max_charge": max_charge,
                 "max_discharge": max_discharge,
