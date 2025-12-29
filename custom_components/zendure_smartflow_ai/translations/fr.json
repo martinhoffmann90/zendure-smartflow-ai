@@ -5,7 +5,7 @@
     "step": {
       "user": {
         "title": "Configurer Zendure SmartFlow AI",
-        "description": "Connectez vos capteurs Zendure et énergétiques pour une gestion intelligente."
+        "description": "Connectez vos capteurs Zendure et énergétiques pour un contrôle intelligent."
       }
     }
   },
@@ -32,84 +32,26 @@
     },
 
     "number": {
-      "soc_min": {
-        "name": "SoC minimum"
-      },
-      "soc_max": {
-        "name": "SoC maximum"
-      },
-      "max_charge": {
-        "name": "Puissance de charge maximale"
-      },
-      "max_discharge": {
-        "name": "Puissance de décharge maximale"
-      },
-      "emergency_charge": {
-        "name": "Puissance de charge d’urgence"
-      },
-      "emergency_soc": {
-        "name": "Charge d’urgence à partir du SoC"
-      },
-      "very_expensive_threshold": {
-        "name": "Seuil très coûteux"
-      },
-      "profit_margin_pct": {
-        "name": "Marge bénéficiaire"
-      }
+      "soc_min": { "name": "SoC minimum" },
+      "soc_max": { "name": "SoC maximum" },
+      "max_charge": { "name": "Puissance de charge max." },
+      "max_discharge": { "name": "Puissance de décharge max." },
+      "emergency_charge": { "name": "Puissance de charge d'urgence" },
+      "emergency_soc": { "name": "Charge d'urgence sous SoC" },
+      "very_expensive_threshold": { "name": "Seuil très cher" },
+      "profit_margin_pct": { "name": "Marge bénéficiaire" }
     },
 
     "sensor": {
-      "status": {
-        "name": "État du système",
-        "state": {
-          "init": "Initialisation",
-          "ok": "OK",
-          "sensor_invalid": "Données capteur invalides",
-          "price_invalid": "Données de prix invalides"
-        }
-      },
-      "ai_status": {
-        "name": "État de l’IA",
-        "state": {
-          "standby": "Veille",
-          "charge_surplus": "Charge (surplus PV)",
-          "cover_deficit": "Compensation du déficit",
-          "expensive_discharge": "Décharge (coûteux)",
-          "very_expensive_force": "Décharge (très coûteux)",
-          "emergency_charge": "Charge d’urgence",
-          "manual": "Mode manuel"
-        }
-      },
-      "recommendation": {
-        "name": "Recommandation IA",
-        "state": {
-          "standby": "Aucune action",
-          "charge": "Charger",
-          "discharge": "Décharger",
-          "emergency": "Charge d’urgence"
-        }
-      },
-      "ai_debug": {
-        "name": "Débogage IA"
-      },
-      "house_load": {
-        "name": "Charge du foyer"
-      },
-      "price_now": {
-        "name": "Prix actuel de l’électricité"
-      }
-    }
-  }
-}
-{
-  "entity": {
-    "sensor": {
-      "avg_charge_price": {
-        "name": "Prix moyen de charge"
-      },
-      "profit_eur": {
-        "name": "Gain / économie (total)"
-      }
+      "status": { "name": "État du système" },
+      "ai_status": { "name": "Statut IA" },
+      "recommendation": { "name": "Recommandation IA" },
+      "ai_debug": { "name": "Débogage IA" },
+      "house_load": { "name": "Charge du foyer" },
+      "price_now": { "name": "Prix actuel de l'électricité" },
+
+      "avg_charge_price": { "name": "Prix moyen de charge de la batterie" },
+      "profit_eur": { "name": "Gain / économies (total)" }
     }
   }
 }
