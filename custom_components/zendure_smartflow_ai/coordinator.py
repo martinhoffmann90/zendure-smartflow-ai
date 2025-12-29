@@ -127,6 +127,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.hass = hass
         self.entry = entry
 
+        # 🔧 Runtime settings (persistent Number entities)
+        self.runtime_settings: dict[str, float] = dict(entry.options)
+
         data = entry.data or {}
 
         self.entities = EntityIds(
