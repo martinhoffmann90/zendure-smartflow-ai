@@ -1,0 +1,103 @@
+{
+  "title": "Zendure SmartFlow AI",
+
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Zendure SmartFlow AI",
+        "description": "Connect your Zendure and energy sensors for intelligent battery control."
+      }
+    }
+  },
+
+  "entity": {
+    "select": {
+      "ai_mode": {
+        "name": "Operating mode",
+        "state": {
+          "automatic": "Automatic",
+          "summer": "Summer",
+          "winter": "Winter",
+          "manual": "Manual"
+        }
+      },
+      "manual_action": {
+        "name": "Manual action",
+        "state": {
+          "standby": "Standby",
+          "charge": "Charge",
+          "discharge": "Discharge"
+        }
+      }
+    },
+
+    "number": {
+      "soc_min": {
+        "name": "SoC minimum"
+      },
+      "soc_max": {
+        "name": "SoC maximum"
+      },
+      "max_charge_power": {
+        "name": "Maximum charge power"
+      },
+      "max_discharge_power": {
+        "name": "Maximum discharge power"
+      },
+      "emergency_charge_power": {
+        "name": "Emergency charge power"
+      },
+      "emergency_soc": {
+        "name": "Emergency charge from SoC"
+      },
+      "very_expensive_threshold": {
+        "name": "Very expensive threshold"
+      },
+      "profit_margin_pct": {
+        "name": "Profit margin"
+      }
+    },
+
+    "sensor": {
+      "status": {
+        "name": "System status",
+        "state": {
+          "init": "Initializing",
+          "ok": "OK",
+          "sensor_invalid": "Invalid sensor data",
+          "price_invalid": "Invalid price data"
+        }
+      },
+      "ai_status": {
+        "name": "AI status",
+        "state": {
+          "standby": "Standby",
+          "charge_surplus": "Charging (PV surplus)",
+          "cover_deficit": "Covering deficit",
+          "expensive_discharge": "Discharging (expensive)",
+          "very_expensive_force": "Discharging (very expensive)",
+          "emergency_charge": "Emergency charge",
+          "manual": "Manual mode"
+        }
+      },
+      "recommendation": {
+        "name": "AI recommendation",
+        "state": {
+          "standby": "No action",
+          "charge": "Charge",
+          "discharge": "Discharge",
+          "emergency": "Emergency charge"
+        }
+      },
+      "ai_debug": {
+        "name": "AI debug"
+      },
+      "house_load": {
+        "name": "House load"
+      },
+      "price_now": {
+        "name": "Current electricity price"
+      }
+    }
+  }
+}
