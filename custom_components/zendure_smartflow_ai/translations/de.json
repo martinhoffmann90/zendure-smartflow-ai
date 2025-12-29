@@ -101,3 +101,15 @@
     }
   }
 }
+{
+  "entity": {
+    "sensor": {
+      "avg_charge_price": {
+        "name": "Ø Ladepreis Akku"
+      },
+      "profit_eur": {
+        "name": "Gewinn / Ersparnis (gesamt)"
+      }
+    }
+  }
+}
