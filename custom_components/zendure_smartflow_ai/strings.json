@@ -1,90 +1,95 @@
 {
   "config": {
+    "error": {
+      "grid_split_missing": "Bei \"Zwei Sensoren\" müssen Bezug und Einspeisung beide ausgewählt werden."
+    },
     "step": {
       "user": {
         "title": "Zendure SmartFlow AI",
-        "description": "Select the entities used by SmartFlow AI. The integration creates its own controls and sensors without external helpers.",
+        "description": "Wähle die Sensoren/Entitäten aus. Der Hausverbrauch wird intern berechnet (kein Helper nötig). Preise sind optional.",
         "data": {
-          "soc_entity": "Battery SoC sensor (%)",
-          "pv_entity": "PV power sensor (W)",
-          "price_now_entity": "Current price sensor (optional, €/kWh)",
-          "price_export_entity": "Price export sensor (optional, e.g. Tibber export)",
-          "grid_mode": "Grid sensor setup",
-          "grid_power_entity": "Grid power (+import / -export) (optional)",
-          "grid_import_entity": "Import power (W) (optional, split)",
-          "grid_export_entity": "Export power (W) (optional, split)",
-          "ac_mode_entity": "Zendure AC mode (select: input/output)",
-          "input_limit_entity": "Zendure input limit (W)",
-          "output_limit_entity": "Zendure output limit (W)"
+          "soc_entity": "Akkustand (SoC) in %",
+          "pv_entity": "PV-Leistung (W)",
+          "price_export_entity": "Strompreis-Export (optional, z.B. Tibber Datenexport)",
+          "price_now_entity": "Aktueller Preis (optional, €/kWh)",
+          "ac_mode_entity": "Zendure AC Mode (Select: input/output)",
+          "input_limit_entity": "Zendure Input-Limit (Number, W)",
+          "output_limit_entity": "Zendure Output-Limit (Number, W)",
+          "grid_mode": "Netzsensor-Setup (empfohlen)",
+          "grid_power_entity": "Netzleistung (+Bezug / –Einspeisung)",
+          "grid_import_entity": "Bezug (W) (bei zwei Sensoren)",
+          "grid_export_entity": "Einspeisung (W) (bei zwei Sensoren)"
         }
       }
-    },
-    "error": {
-      "grid_split_missing": "For \"Two sensors\", both import and export must be selected."
     }
   },
   "entity": {
-    "sensor": {
-      "status": {
-        "name": "Status",
-        "options": {
-          "init": "Init",
-          "ok": "OK",
-          "sensor_invalid": "Sensor invalid",
-          "price_missing": "Price missing"
-        }
-      },
-      "ai_status": {
-        "name": "AI status",
-        "options": {
-          "standby": "Standby",
-          "charge_surplus": "Charge (surplus)",
-          "cover_deficit": "Cover deficit",
-          "very_expensive": "Very expensive",
-          "profit_margin": "Profit margin reached",
-          "manual": "Manual"
-        }
-      },
-      "recommendation": {
-        "name": "Recommendation",
-        "options": {
-          "standby": "Standby",
-          "charge": "Charge",
-          "discharge": "Discharge"
-        }
-      },
-      "ai_debug": { "name": "AI debug" },
-      "house_load": { "name": "House load" },
-      "price_now": { "name": "Current price" },
-      "avg_charge_price": { "name": "Average charge price" },
-      "total_profit": { "name": "Total profit / savings" }
-    },
-    "number": {
-      "soc_min": { "name": "SoC minimum (%)" },
-      "soc_max": { "name": "SoC maximum (%)" },
-      "max_charge": { "name": "Max charge power (W)" },
-      "max_discharge": { "name": "Max discharge power (W)" },
-      "very_expensive_threshold": { "name": "Very expensive threshold (€/kWh)" },
-      "profit_margin_percent": { "name": "Profit margin (%)" }
-    },
     "select": {
       "ai_mode": {
-        "name": "SmartFlow AI – Mode",
+        "name": "Betriebsmodus",
         "options": {
-          "automatic": "Automatic",
-          "summer": "Summer",
+          "automatic": "Automatik",
+          "summer": "Sommer",
           "winter": "Winter",
-          "manual": "Manual"
+          "manual": "Manuell"
         }
       },
       "manual_action": {
-        "name": "SmartFlow AI – Manual action",
+        "name": "Manuelle Aktion",
         "options": {
           "standby": "Standby",
-          "charge": "Charge",
-          "discharge": "Discharge"
+          "charge": "Laden",
+          "discharge": "Entladen"
         }
       }
+    },
+    "number": {
+      "soc_min": { "name": "SoC Minimum (%)" },
+      "soc_max": { "name": "SoC Maximum (%)" },
+      "max_charge": { "name": "Max. Ladeleistung (W)" },
+      "max_discharge": { "name": "Max. Entladeleistung (W)" },
+      "price_threshold": { "name": "Teuer-Schwelle (€/kWh)" },
+      "very_expensive_threshold": { "name": "Sehr teuer-Schwelle (€/kWh)" },
+      "emergency_soc": { "name": "Notladung ab SoC (%)" },
+      "emergency_charge_w": { "name": "Notladeleistung (W)" },
+      "profit_margin_pct": { "name": "Gewinnmarge für Entladung (%)" }
+    },
+    "sensor": {
+      "status": {
+        "name": "Status",
+        "state": {
+          "init": "Initialisierung",
+          "ok": "OK",
+          "sensor_invalid": "Sensor ungültig",
+          "price_invalid": "Preis ungültig"
+        }
+      },
+      "ai_status": {
+        "name": "KI-Status",
+        "state": {
+          "standby": "Standby",
+          "charge_surplus": "PV-Überschuss laden",
+          "cover_deficit": "Bezug ausgleichen",
+          "expensive_discharge": "Teuer – Entladen",
+          "very_expensive_force": "Sehr teuer – Entladung erzwingen",
+          "emergency_charge": "Notladung aktiv",
+          "manual": "Manueller Modus"
+        }
+      },
+      "recommendation": {
+        "name": "Steuerungsempfehlung",
+        "state": {
+          "standby": "Standby",
+          "charge": "Laden",
+          "discharge": "Entladen",
+          "emergency_charge": "Notladung"
+        }
+      },
+      "ai_debug": { "name": "KI-Debug" },
+      "house_load": { "name": "Hausverbrauch (berechnet)" },
+      "price_now": { "name": "Aktueller Preis" },
+      "avg_charge_price": { "name": "Ø Ladepreis Akku" },
+      "profit_eur": { "name": "Gewinn / Ersparnis (gesamt)" }
     }
   }
 }
