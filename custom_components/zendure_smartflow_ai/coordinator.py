@@ -15,7 +15,6 @@ from .const import (
     DOMAIN,
     UPDATE_INTERVAL,
 
-    # config keys
     CONF_SOC_ENTITY,
     CONF_PV_ENTITY,
     CONF_PRICE_EXPORT_ENTITY,
@@ -31,7 +30,6 @@ from .const import (
     GRID_MODE_SINGLE,
     GRID_MODE_SPLIT,
 
-    # modes
     AI_MODE_AUTOMATIC,
     AI_MODE_SUMMER,
     AI_MODE_WINTER,
@@ -40,7 +38,6 @@ from .const import (
     MANUAL_CHARGE,
     MANUAL_DISCHARGE,
 
-    # settings keys
     SETTING_SOC_MIN,
     SETTING_SOC_MAX,
     SETTING_MAX_CHARGE,
@@ -51,7 +48,6 @@ from .const import (
     SETTING_EMERGENCY_CHARGE_W,
     SETTING_PROFIT_MARGIN_PCT,
 
-    # defaults
     DEFAULT_SOC_MIN,
     DEFAULT_SOC_MAX,
     DEFAULT_MAX_CHARGE,
@@ -62,7 +58,6 @@ from .const import (
     DEFAULT_EMERGENCY_CHARGE_W,
     DEFAULT_PROFIT_MARGIN_PCT,
 
-    # statuses
     STATUS_OK,
     STATUS_SENSOR_INVALID,
     STATUS_PRICE_INVALID,
@@ -91,15 +86,12 @@ STORE_VERSION = 1
 class EntityIds:
     soc: str
     pv: str
-
     price_export: str | None
     price_now: str | None
-
     grid_mode: str
     grid_power: str | None
     grid_import: str | None
     grid_export: str | None
-
     ac_mode: str
     input_limit: str
     output_limit: str
@@ -239,7 +231,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             emergency_w = self._get_setting(SETTING_EMERGENCY_CHARGE_W, DEFAULT_EMERGENCY_CHARGE_W)
             max_charge = self._get_setting(SETTING_MAX_CHARGE, DEFAULT_MAX_CHARGE)
 
-            # -------- Emergency trigger --------
+            # 🔴 Emergency trigger
             if soc <= emergency_soc:
                 self._persist["emergency_active"] = True
 
