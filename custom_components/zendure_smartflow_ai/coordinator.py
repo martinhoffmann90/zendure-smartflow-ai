@@ -444,8 +444,19 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     is_winter = ai_mode in (AI_MODE_WINTER,)
                     is_auto = ai_mode in (AI_MODE_AUTOMATIC,)
 
+                    # --------------------------------------------------
+                    # ☀️ SOMMER: Autarkie priorisieren
+                    # → Bei Netzbezug immer entladen (preisunabhängig)
+                    # --------------------------------------------------
+                    if is_summer and deficit is not None and deficit > 0 and soc > soc_min:
+                        ai_status = AI_STATUS_COVER_DEFICIT
+                        recommendation = RECO_DISCHARGE
+                        ac_mode = ZENDURE_MODE_OUTPUT
+                        in_w = 0.0
+                        out_w = min(max_discharge, float(deficit))
+    
                     # 1) PV surplus charge (needs house_load calculation)
-                    if surplus is not None and surplus > 50 and soc < soc_max:
+                    elif surplus is not None and surplus > 50 and soc < soc_max:
                         ai_status = AI_STATUS_CHARGE_SURPLUS
                         recommendation = RECO_CHARGE
                         ac_mode = ZENDURE_MODE_INPUT
