@@ -21,12 +21,13 @@ Stand: 30.12.2025
 10. Entladen zur Defizitdeckung: Warum, wann und wie stark?
 11. Max-Limits: Wie die Regler die Steuerung begrenzen
 12. Zendure-Ansteuerung: Welche Services werden gesetzt?
-13. Debugging & Transparenz: Welche Infos liefern die Sensoren / Attribute?
-14. Sensoren & Attribute im Detail (Referenz)
-15. Typische Szenarien (mit Erklärungen „warum gerade so“)
-16. Häufige Stolperfallen & Troubleshooting
-17. FAQ
-18. Roadmap / Zukunft (optional)
+13. Debugging & Transparenz: Status, Empfehlung & Entscheidungsgrund
+14. Entscheidungsgrund (decision_reason) – Bedeutung & Referenz
+15. Sensoren & Attribute im Detail (Referenz)
+16. Typische Szenarien (mit Erklärungen „warum gerade so“)
+17. Häufige Stolperfallen & Troubleshooting
+18. FAQ
+19. Roadmap / Zukunft (optional)
 
 ---
 
@@ -366,11 +367,112 @@ Zusätzlich enthalten die Sensoren ein **Details-Attribut** mit:
 - gesetzten Lade- und Entladeleistungen
 - Notladestatus
 
+### Entscheidungsgrund (decision_reason)
+
+Zusätzlich zu **KI-Status** und **Empfehlung** stellt die Integration
+den Sensor **„Entscheidungsgrund“** bereit.
+
+Dieser Sensor beantwortet explizit die Frage:
+
+> **Warum hat die KI diese Entscheidung getroffen?**
+
+Während:
+- **KI-Status** beschreibt *den aktuellen Zustand*  
+- **Empfehlung** beschreibt *die empfohlene Aktion*  
+
+liefert **decision_reason** die **konkrete Regel**, die gegriffen hat.
+
+Das ist besonders hilfreich für:
+- Debugging
+- Verständnis komplexer Situationen
+- Support / Forum / Fehlersuche
+
 Damit lässt sich jede Entscheidung rückverfolgen.
 
 ---
 
-## 14) Typische Szenarien
+## 14) Entscheidungsgrund (decision_reason)
+
+Der Sensor **decision_reason** zeigt den exakten Auslöser,
+der im aktuellen Zyklus zur Entscheidung geführt hat.
+
+Er ist **deterministisch**:
+- Gleiche Situation → gleicher Entscheidungsgrund
+
+### Mögliche Werte und ihre Bedeutung
+
+#### idle
+Keine Regel hat gegriffen.  
+Die KI befindet sich im Standby.
+
+---
+
+#### emergency_latched_charge
+Die **Notladung ist aktiv** und weiterhin gesperrt (Latch aktiv).  
+Der Akku wird geladen, bis mindestens **SoC-Minimum** erreicht ist.
+
+---
+
+#### manual_mode
+Der **manuelle Modus** ist aktiv.  
+Automatische Regeln sind vollständig deaktiviert.
+
+---
+
+#### manual_charge
+Manuelles Laden wurde explizit ausgewählt.
+
+---
+
+#### manual_discharge
+Manuelles Entladen wurde explizit ausgewählt.
+
+---
+
+#### summer_cover_deficit
+Sommermodus:
+- Netzdefizit erkannt
+- SoC > SoC-Minimum  
+→ Akku deckt aktiv den Netzbezug (Autarkie-Fokus)
+
+---
+
+#### pv_surplus_charge
+PV-Überschuss erkannt:
+- PV-Leistung > Hauslast
+- SoC < SoC-Maximum  
+→ Akku wird mit Überschuss geladen
+
+---
+
+#### very_expensive_force_discharge
+Sehr hoher Strompreis:
+- Preis ≥ Sehr-Teuer-Schwelle
+- Netzdefizit vorhanden
+- SoC > SoC-Minimum  
+→ Entladung wird **erzwungen**
+
+---
+
+#### expensive_discharge
+Hoher Strompreis:
+- Preis ≥ Teuer-Schwelle
+- Netzdefizit vorhanden
+- Automatik- oder Wintermodus aktiv  
+→ Akku reduziert Netzbezug
+
+---
+
+#### standby_no_condition_met
+Keine Bedingung erfüllt:
+- kein Überschuss
+- kein Defizit
+- Preis nicht relevant  
+→ Standby
+
+---
+
+## 15) Typische Szenarien
 
 ### Akku tief entladen
 - SoC fällt unter Notladung ab SoC
@@ -390,7 +492,7 @@ Damit lässt sich jede Entscheidung rückverfolgen.
 
 ---
 
-## 15) Häufige Stolperfallen
+## 16) Häufige Stolperfallen
 
 - Falscher Grid-Modus → Hauslast falsch
 - Preisquelle vorhanden, aber leer → Preisstatus ungültig
@@ -399,7 +501,7 @@ Damit lässt sich jede Entscheidung rückverfolgen.
 
 ---
 
-## 16) Zusammenfassung
+## 17) Zusammenfassung
 
 Die KI arbeitet:
 - deterministisch
