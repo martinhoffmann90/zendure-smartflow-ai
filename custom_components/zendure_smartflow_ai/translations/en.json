@@ -57,9 +57,9 @@
         "state": {
           "standby": "Standby",
           "charge_surplus": "Charging (PV surplus)",
-          "cover_deficit": "Covering deficit",
+          "cover_deficit": "Covering grid deficit",
           "expensive_discharge": "Discharging (expensive)",
-          "very_expensive_force": "Discharging (very expensive)",
+          "very_expensive_force": "Forced discharge (very expensive)",
           "emergency_charge": "Emergency charge",
           "manual": "Manual mode"
         }
@@ -73,10 +73,26 @@
           "emergency": "Emergency charge"
         }
       },
+
+      "decision_reason": {
+        "name": "Decision reason",
+        "state": {
+          "idle": "Idle (no action required)",
+          "emergency_latched_charge": "Emergency charge active (latched)",
+          "manual_mode": "Manual mode active",
+          "manual_charge": "Manual charging",
+          "manual_discharge": "Manual discharging",
+          "summer_cover_deficit": "Summer mode: covering grid deficit",
+          "pv_surplus_charge": "Charging from PV surplus",
+          "very_expensive_force_discharge": "Forced discharge due to very high price",
+          "expensive_discharge": "Discharge due to high price",
+          "standby_no_condition_met": "Standby (no condition met)"
+        }
+      },
+
       "ai_debug": { "name": "AI debug" },
       "house_load": { "name": "House load" },
       "price_now": { "name": "Current electricity price" },
-
       "avg_charge_price": { "name": "Average battery charge price" },
       "profit_eur": { "name": "Profit / savings (total)" }
     }
