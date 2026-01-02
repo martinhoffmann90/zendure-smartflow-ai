@@ -153,13 +153,13 @@ class ZendureSmartFlowNumber(NumberEntity):
         return float(self.coordinator.runtime_settings.get(self.entity_description.runtime_key, 0))
 
     async def async_set_native_value(self, value: float) -> None:
-        self.coordinator.runtime_settings[self.entity_description.runtime_key] = value
+        self.coordinator.runtime_settings[self.entity_description.runtime_key] = float(value)
 
-        await self.hass.config_entries.async_update_entry(
+        self.hass.config_entries.async_update_entry(
             self._entry,
             options={
                 **self._entry.options,
-                self.entity_description.runtime_key: value,
+                self.entity_description.runtime_key: float(value),
             },
         )
 
