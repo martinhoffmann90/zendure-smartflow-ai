@@ -312,16 +312,15 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
 
     # --------------------------------------------------
-    # settings from integration number entities
-    # (numbers live in HA registry, read via entity_id)
+    # settings (stored in config entry options)
     # --------------------------------------------------
-    def _setting_entity_id(self, key: str) -> str:
-        # stable entity_id pattern for our own numbers
-        # note: entity_id uses domain "number"
-        return f"number.{DOMAIN}_{key}"
-
     def _get_setting(self, key: str, default: float) -> float:
-        return _to_float(self._state(self._setting_entity_id(key)), default) or default
+        """Read setting from config entry options (single source of truth)."""
+        try:
+            val = self.entry.options.get(key, default)
+            return float(val)
+        except Exception:
+            return float(default)
 
     # --------------------------------------------------
     async def _async_update_data(self) -> dict[str, Any]:
