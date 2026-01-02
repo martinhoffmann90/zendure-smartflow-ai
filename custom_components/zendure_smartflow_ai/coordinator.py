@@ -442,7 +442,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         decision_reason = "manual_discharge"
 
                 else:
-                    decision_reason = "manual_standby"
+                    decision_reason = "automatic_idle"
                     # -----------------------------
                     # AUTOMATIC / SUMMER / WINTER
                     # -----------------------------
