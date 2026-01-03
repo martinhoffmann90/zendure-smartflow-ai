@@ -48,7 +48,7 @@ from .const import (
     SETTING_PRICE_THRESHOLD,
     SETTING_VERY_EXPENSIVE_THRESHOLD,
     SETTING_EMERGENCY_SOC,
-    SETTING_EMERGENCY_CHARGE,
+    SETTING_EMERGENCY_CHARGE_W,
     SETTING_PROFIT_MARGIN_PCT,
 
     # defaults
@@ -59,7 +59,7 @@ from .const import (
     DEFAULT_PRICE_THRESHOLD,
     DEFAULT_VERY_EXPENSIVE_THRESHOLD,
     DEFAULT_EMERGENCY_SOC,
-    DEFAULT_EMERGENCY_CHARGE,
+    DEFAULT_EMERGENCY_CHARGE_W,
     DEFAULT_PROFIT_MARGIN_PCT,
 
     # statuses
@@ -88,6 +88,13 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 STORE_VERSION = 1
+
+# Anti-Schwingung (Regel-Stabilisierung) – verhindert Oszillation bei Defizitmessung
+ANTI_SWING_HOLD_S = 30          # Mindesthaltezeit für einen gesetzten Entlade-Wert
+ANTI_SWING_STEP_W = 150         # maximale Änderung pro Update-Zyklus (Rampe)
+ANTI_SWING_HYST_W = 120         # Hysterese um kleine Messsprünge zu ignorieren
+ANTI_SWING_START_W = 200        # Defizit, ab dem Entladen überhaupt startet
+ANTI_SWING_STOP_W = 80          # Defizit, unter dem Entladen beendet werden darf (nach Hold)
 
 
 @dataclass
@@ -133,8 +140,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             SETTING_SOC_MAX: entry.options.get(SETTING_SOC_MAX, DEFAULT_SOC_MAX),
             SETTING_MAX_CHARGE: entry.options.get(SETTING_MAX_CHARGE, DEFAULT_MAX_CHARGE),
             SETTING_MAX_DISCHARGE: entry.options.get(SETTING_MAX_DISCHARGE, DEFAULT_MAX_DISCHARGE),
-            SETTING_EMERGENCY_CHARGE: entry.options.get(
-                SETTING_EMERGENCY_CHARGE, DEFAULT_EMERGENCY_CHARGE
+            SETTING_EMERGENCY_CHARGE_W: entry.options.get(
+                SETTING_EMERGENCY_CHARGE_W, DEFAULT_EMERGENCY_CHARGE_W
             ),
             SETTING_EMERGENCY_SOC: entry.options.get(
                 SETTING_EMERGENCY_SOC, DEFAULT_EMERGENCY_SOC
@@ -185,6 +192,10 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "discharged_kwh": 0.0,
             "profit_eur": 0.0,
             "last_ts": None,
+
+            # Anti-Schwingung: letztes gesetztes Entlade-Setpoint (für Stabilisierung)
+            "last_out_w": 0.0,
+            "last_out_ts": None,
         }
 
         super().__init__(
@@ -322,6 +333,74 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except Exception:
             return float(default)
 
+    def _smooth_discharge_output(self, target_w: float, deficit_w: float | None, now_dt) -> float:
+        """Stabilisiert Entladeleistung gegen Oszillation.
+
+        Hintergrund:
+        Der gemessene Netzbezug (Defizit) reagiert verzögert auf das gesetzte Output-Limit.
+        Ohne Stabilisierung entsteht ein Regelkreis (z.B. 1200W Defizit -> 1100W Entladung -> 100W Defizit -> 100W Entladung -> 1100W Defizit ...).
+
+        Strategie:
+        - Mindesthaltezeit (ANTI_SWING_HOLD_S) für zuletzt gesetzten Wert
+        - Hysterese (ANTI_SWING_HYST_W) gegen kleine Schwankungen/Export-Spikes
+        - Rampenlimit (ANTI_SWING_STEP_W) pro Update
+        - Start/Stop-Schwellen (ANTI_SWING_START_W/STOP_W)
+        """
+        last_w = float(self._persist.get("last_out_w") or 0.0)
+        last_ts = self._persist.get("last_out_ts")
+        last_dt = None
+        if last_ts:
+            try:
+                last_dt = dt_util.parse_datetime(last_ts)
+            except Exception:
+                last_dt = None
+
+        age_s = 1e9
+        if last_dt:
+            try:
+                age_s = max((now_dt - last_dt).total_seconds(), 0.0)
+            except Exception:
+                age_s = 1e9
+
+        # Wenn Defizit unbekannt ist: innerhalb Hold beibehalten, sonst sanft auf 0.
+        if deficit_w is None:
+            if age_s < ANTI_SWING_HOLD_S:
+                return last_w
+            return 0.0
+
+        deficit = max(float(deficit_w), 0.0)
+
+        # Stop-Logik: erst nach Hold wirklich auf 0 gehen (Export-Spikes abfangen)
+        if deficit < ANTI_SWING_STOP_W:
+            if age_s < ANTI_SWING_HOLD_S and last_w > 0:
+                return last_w
+            return 0.0
+
+        # Start-Logik: unter Start-Schwelle nicht anlaufen (gegen Rauschen)
+        if last_w <= 0.0 and deficit < ANTI_SWING_START_W:
+            return 0.0
+
+        # Hysterese: innerhalb +/- HYST um den aktuellen Wert nicht nachregeln
+        if last_w > 0.0 and abs(deficit - last_w) < ANTI_SWING_HYST_W:
+            return last_w
+
+        # Zielwert: wir wollen i.d.R. Defizit decken, aber stabil (Rampe)
+        target = max(float(target_w), 0.0)
+
+        # Innerhalb Hold: nur in Richtung "mehr" reagieren, wenn deutlich größer
+        if age_s < ANTI_SWING_HOLD_S and last_w > 0.0 and deficit < last_w:
+            # Defizit kleiner als zuletzt: innerhalb Hold nicht sofort runterregeln
+            target = max(last_w, target)
+
+        # Rampenlimit pro Update
+        delta = target - last_w
+        if delta > ANTI_SWING_STEP_W:
+            target = last_w + ANTI_SWING_STEP_W
+        elif delta < -ANTI_SWING_STEP_W:
+            target = last_w - ANTI_SWING_STEP_W
+
+        return max(target, 0.0)
+
     # --------------------------------------------------
     async def _async_update_data(self) -> dict[str, Any]:
         try:
@@ -358,7 +437,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
 
             emergency_soc = self._get_setting(SETTING_EMERGENCY_SOC, DEFAULT_EMERGENCY_SOC)
-            emergency_w = self._get_setting(SETTING_EMERGENCY_CHARGE, DEFAULT_EMERGENCY_CHARGE)
+            emergency_w = self._get_setting(SETTING_EMERGENCY_CHARGE_W, DEFAULT_EMERGENCY_CHARGE_W)
 
             profit_margin_pct = self._get_setting(SETTING_PROFIT_MARGIN_PCT, DEFAULT_PROFIT_MARGIN_PCT)
 
@@ -460,7 +539,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         in_w = 0.0
                         out_w = min(max_discharge, float(deficit))
                         decision_reason = "summer_cover_deficit"
-    
+
                     # 1) PV surplus charge (needs house_load calculation)
                     elif surplus is not None and surplus > 50 and soc < soc_max:
                         ai_status = AI_STATUS_CHARGE_SURPLUS
@@ -499,6 +578,19 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             if ai_status == AI_STATUS_STANDBY:
                                 recommendation = RECO_STANDBY
                                 decision_reason = "standby_no_condition_met"
+
+            # -----------------------------
+            # Anti-Schwingung: Entladeleistung stabilisieren (nur wenn OUTPUT aktiv)
+            # -----------------------------
+            if ac_mode == ZENDURE_MODE_OUTPUT:
+                out_w = self._smooth_discharge_output(out_w, deficit, now)
+                # Persist Setpoint für nächste Iteration
+                self._persist["last_out_w"] = float(out_w)
+                self._persist["last_out_ts"] = now.isoformat()
+            else:
+                # Beim Laden/Standby Setpoint zurücksetzen
+                self._persist["last_out_w"] = 0.0
+                self._persist["last_out_ts"] = now.isoformat()
 
             # -----------------------------
             # Price invalid status (only if user provided price source but parsing failed)
