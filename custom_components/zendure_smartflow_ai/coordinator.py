@@ -182,7 +182,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # persistent analytics + emergency latch
         self._store = Store(hass, STORE_VERSION, f"{DOMAIN}.{entry.entry_id}")
         self._persist: dict[str, Any] = {
-   	    "runtime_mode": dict(self.runtime_mode),
+   	    	"runtime_mode": dict(self.runtime_mode),
 
     		"emergency_active": False,
 
