@@ -594,7 +594,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 deficit = float(grid_import)
 
             # --------------------------------------------------
-            # ✅ NEW: Emergency latch logic
+            # ✅ NEW: Emergency latch logics
             # Trigger at emergency_soc, keep active until soc_min reached
             # --------------------------------------------------
             if soc <= emergency_soc:
@@ -612,6 +612,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             in_w = 0.0
             out_w = 0.0
             decision_reason = "idle"
+            control_layer = "standby"
 
             ai_mode = self.runtime_mode.get("ai_mode", AI_MODE_AUTOMATIC)
             manual_action = self.runtime_mode.get("manual_action", MANUAL_STANDBY)
@@ -626,6 +627,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 in_w = min(max_charge, max(emergency_w, 0.0))
                 out_w = 0.0
                 decision_reason = "emergency_latched_charge"
+                control_layer = "emergency"
 
             else:
                 # -----------------------------
@@ -634,6 +636,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 if ai_mode == AI_MODE_MANUAL:
                     ai_status = AI_STATUS_MANUAL
                     decision_reason = "manual_mode"
+                    control_layer = "manual"
 
                     if manual_action == MANUAL_STANDBY:
                         recommendation = RECO_STANDBY
@@ -674,6 +677,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 					)
 
 					if planning:
+                        control_layer = "planning"
     					self._persist["planning_active"] = True
     					self._persist["planning_target_soc"] = soc_max
     					self._persist["planning_next_peak"] = {
@@ -728,6 +732,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         in_w = min(max_charge, surplus)
                         out_w = 0.0
                         decision_reason = "pv_surplus_charge"
+                        control_layer = "pv"
 
                     # 2) Price-based discharge
                     if price_now is None:
@@ -743,6 +748,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             in_w = 0.0
                             out_w = min(max_discharge, float(deficit))
                             decision_reason = "very_expensive_force_discharge"
+                            control_layer = "price"
 
                         elif price_now >= expensive and soc > soc_min and (deficit is not None and deficit > 0):
                             if is_winter or is_auto:
@@ -752,6 +758,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                                 in_w = 0.0
                                 out_w = min(max_discharge, float(deficit))
                                 decision_reason = "expensive_discharge"
+                                control_layer = "price"
                             else:
                                 pass
                         else:
@@ -881,6 +888,15 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
                 "profit_margin_pct": profit_margin_pct,
             }
+            
+            details["control_layer"] = control_layer
+
+			details["planning"] = {
+   			 "active": bool(self._persist.get("planning_active")),
+    			"reason": self._persist.get("planning_reason"),
+    			"target_soc": self._persist.get("planning_target_soc"),
+    			"next_peak": self._persist.get("planning_next_peak"),
+			}
 
             return {
                 "status": status,
