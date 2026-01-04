@@ -29,7 +29,7 @@ class ZendureSensorEntityDescription(SensorEntityDescription):
 
 
 SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
-    # ENUM states -> translated via strings/de/fr "state" mapping
+    # ENUM states -> translated via strings/*
     ZendureSensorEntityDescription(
         key="status",
         translation_key="status",
@@ -54,7 +54,8 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.ENUM,
         options=RECO_ENUMS,
     ),
-    # Debug remains raw (string)
+
+    # Debug / Reason
     ZendureSensorEntityDescription(
         key="ai_debug",
         translation_key="ai_debug",
@@ -67,6 +68,34 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         runtime_key="decision_reason",
         icon="mdi:head-question-outline",
     ),
+
+    # --- V1.2 Preis-Vorplanung (Debug / Transparenz) ---
+    ZendureSensorEntityDescription(
+        key="planning_active",
+        translation_key="planning_active",
+        runtime_key="planning_active",
+        icon="mdi:calendar-check",
+    ),
+    ZendureSensorEntityDescription(
+        key="planning_target_soc",
+        translation_key="planning_target_soc",
+        runtime_key="planning_target_soc",
+        icon="mdi:battery-charging-90",
+        native_unit_of_measurement="%",
+    ),
+    ZendureSensorEntityDescription(
+        key="planning_next_peak",
+        translation_key="planning_next_peak",
+        runtime_key="planning_next_peak",
+        icon="mdi:chart-line",
+    ),
+    ZendureSensorEntityDescription(
+        key="planning_reason",
+        translation_key="planning_reason",
+        runtime_key="planning_reason",
+        icon="mdi:comment-text-outline",
+    ),
+
     # Numeric sensors
     ZendureSensorEntityDescription(
         key="house_load",
@@ -99,15 +128,24 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
 )
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add_entities: AddEntitiesCallback) -> None:
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    add_entities: AddEntitiesCallback,
+) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    add_entities([ZendureSmartFlowSensor(entry, coordinator, d) for d in SENSORS])
+    add_entities(ZendureSmartFlowSensor(entry, coordinator, d) for d in SENSORS)
 
 
 class ZendureSmartFlowSensor(SensorEntity):
     _attr_has_entity_name = True
 
-    def __init__(self, entry: ConfigEntry, coordinator, description: ZendureSensorEntityDescription) -> None:
+    def __init__(
+        self,
+        entry: ConfigEntry,
+        coordinator,
+        description: ZendureSensorEntityDescription,
+    ) -> None:
         self.entity_description = description
         self.coordinator = coordinator
         self._entry = entry
@@ -128,27 +166,37 @@ class ZendureSmartFlowSensor(SensorEntity):
     @property
     def native_value(self):
         data = self.coordinator.data or {}
+        details = data.get("details") or {}
         key = self.entity_description.runtime_key
 
-        details = data.get("details") or {}
+        # Explicit numeric mappings
+        if key in (
+            "house_load",
+            "price_now",
+            "avg_charge_price",
+            "profit_eur",
+        ):
+            return details.get(key)
 
-        if key == "house_load":
-            return details.get("house_load")
-        if key == "price_now":
-            return details.get("price_now")
-        if key == "avg_charge_price":
-            return details.get("avg_charge_price")
-        if key == "profit_eur":
-            return details.get("profit_eur")
+        # V1.2 planning values live in details
+        if key.startswith("planning_"):
+            return details.get(key)
 
         return data.get(key)
 
     @property
     def extra_state_attributes(self):
         data = self.coordinator.data or {}
-        if self.entity_description.key in ("ai_status", "recommendation", "status", "ai_debug"):
+        if self.entity_description.key in (
+            "ai_status",
+            "recommendation",
+            "status",
+            "ai_debug",
+        ):
             return data.get("details")
         return None
 
     async def async_added_to_hass(self) -> None:
-        self.async_on_remove(self.coordinator.async_add_listener(self.async_write_ha_state))
+        self.async_on_remove(
+            self.coordinator.async_add_listener(self.async_write_ha_state)
+        )
