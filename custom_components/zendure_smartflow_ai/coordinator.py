@@ -182,7 +182,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # persistent analytics + emergency latch
         self._store = Store(hass, STORE_VERSION, f"{DOMAIN}.{entry.entry_id}")
         self._persist: dict[str, Any] = {
-    		"runtime_mode": dict(self.runtime_mode),
+   	    "runtime_mode": dict(self.runtime_mode),
 
     		"emergency_active": False,
 
@@ -193,9 +193,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     		"planning_reason": None,
 
     		# --- anti oscillation ---
-			"last_out_w": 0.0,
-			"last_out_ts": None,
-			"discharge_active_since": None,
+    		"last_out_w": 0.0,
+    		"last_out_ts": None,
+    		"discharge_active_since": None,
 
     		# analytics
     		"avg_charge_price": None,
@@ -203,8 +203,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     		"discharged_kwh": 0.0,
     		"profit_eur": 0.0,
     		"last_ts": None,
-
-        }
+		}
 
         super().__init__(
             hass,
