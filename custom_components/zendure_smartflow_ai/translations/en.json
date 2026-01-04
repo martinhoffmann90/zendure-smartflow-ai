@@ -52,18 +52,20 @@
           "price_invalid": "Invalid price data"
         }
       },
+
       "ai_status": {
         "name": "AI status",
         "state": {
           "standby": "Standby",
-          "charge_surplus": "Charging (PV surplus)",
+          "charge_surplus": "Charging",
           "cover_deficit": "Covering grid deficit",
           "expensive_discharge": "Discharging (expensive)",
-          "very_expensive_force": "Forced discharge (very expensive)",
+          "very_expensive_force": "Discharging (very expensive)",
           "emergency_charge": "Emergency charge",
           "manual": "Manual mode"
         }
       },
+
       "recommendation": {
         "name": "AI recommendation",
         "state": {
@@ -78,16 +80,36 @@
         "name": "Decision reason",
         "state": {
           "idle": "Idle (no action required)",
-          "emergency_latched_charge": "Emergency charge active (latched)",
+
+          "emergency_latched_charge": "Emergency charge active (safety reserve)",
           "manual_mode": "Manual mode active",
           "manual_charge": "Manual charging",
           "manual_discharge": "Manual discharging",
+
           "summer_cover_deficit": "Summer mode: covering grid deficit",
           "pv_surplus_charge": "Charging from PV surplus",
-          "very_expensive_force_discharge": "Forced discharge due to very high price",
-          "expensive_discharge": "Discharge due to high price",
+
+          "expensive_discharge": "Discharging due to high electricity price",
+          "very_expensive_force_discharge": "Forced discharge due to very high electricity price",
+
+          "planning_charge": "Price planning: cheap charging window",
+          "planning_last_chance": "Price planning: last chance before price peak",
+
           "standby_no_condition_met": "Standby (no condition met)"
         }
+      },
+
+      "planning_active": {
+        "name": "Price planning active"
+      },
+      "planning_target_soc": {
+        "name": "Target SoC (price planning)"
+      },
+      "planning_next_peak": {
+        "name": "Next price peak (planning)"
+      },
+      "planning_reason": {
+        "name": "Planning reason"
       },
 
       "ai_debug": { "name": "AI debug" },
