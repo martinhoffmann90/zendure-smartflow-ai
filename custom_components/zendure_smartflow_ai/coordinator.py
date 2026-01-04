@@ -408,23 +408,136 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         return max(target, 0.0)
         
-    # --------------------------------------------------
-    # V1.2 – Preis-Vorplanung (Platzhalter, noch inaktiv)
+	# --------------------------------------------------
+    # V1.2 – Preis-Vorplanung (aktiv)
     # --------------------------------------------------
     def _evaluate_price_planning(
         self,
+        now_dt,
         soc: float,
         soc_max: float,
         price_now: float | None,
+        expensive: float,
+        very_expensive: float,
+        profit_margin_pct: float,
+        max_charge: float,
+        surplus_w: float | None,
     ) -> dict[str, Any] | None:
         """
-        Platzhalter für V1.2 Preis-Vorplanung.
+        Preis-Vorplanung (V1.2.0 Basis):
 
-        Liefert aktuell IMMER None → kein Verhalten wird verändert.
-        Dient nur als sauberer Hook für spätere Logik.
+        Idee:
+        - Finde die nächste Preisspitze (>= very_expensive ODER >= expensive + Marge)
+        - Schaue alle Slots bis dahin an und definiere das "Billigfenster" = günstigste 25%
+        - Wenn wir JETZT im Billigfenster sind, laden wir (Netzladung) so stark wie erlaubt,
+          bis soc_max erreicht ist.
+
+        Einschränkung:
+        - Wir planen nur mit dem Export-Preisarray (price_export:data), da price_now alleine keine Zukunft kennt.
+        - Wir planen nur bis zum nächsten Peak innerhalb des heutigen Arrays.
         """
-        return None
 
+        # Wenn SOC bereits voll (oder drüber) -> nix planen
+        if soc >= soc_max:
+            return None
+
+        # Wenn PV-Überschuss gerade da ist: PV-Logik soll gewinnen (kein Netzladen "dazwischen")
+        if surplus_w is not None and float(surplus_w) > 50.0:
+            return None
+
+        # Ohne aktuellen Preis bringt "bin ich im Billigfenster?" nichts
+        if price_now is None:
+            return None
+
+        # Wir brauchen zukünftige Preise -> nur möglich, wenn price_export vorhanden ist
+        if not self.entities.price_export:
+            return None
+
+        export = self._attr(self.entities.price_export, "data")
+        if not isinstance(export, list) or len(export) < 2:
+            return None
+
+        # Index im 15-Minuten Raster (wie in _price_now)
+        local_now = dt_util.now()
+        idx_now = int((local_now.hour * 60 + local_now.minute) // 15)
+        if idx_now < 0 or idx_now >= len(export):
+            return None
+
+        # Preise ab "jetzt" bis Ende des Arrays lesen
+        future_prices: list[float] = []
+        for i in range(idx_now, len(export)):
+            item = export[i]
+            if isinstance(item, dict):
+                p = _to_float(item.get("price_per_kwh"), None)
+                if p is not None:
+                    future_prices.append(float(p))
+                else:
+                    # wenn ein Slot kaputt ist -> abbrechen (keine zuverlässige Planung)
+                    return None
+            else:
+                return None
+
+        if len(future_prices) < 4:
+            return None
+
+        # Marge berücksichtigen (profit_margin_pct)
+        # -> ab wann gilt es als "Peak", der später teuer wird?
+        margin = max(float(profit_margin_pct or 0.0), 0.0) / 100.0
+        peak_threshold = max(very_expensive, expensive * (1.0 + margin))
+
+        # Nächsten Peak finden (im future_prices-Array ist Index 0 = jetzt)
+        peak_rel_idx = None
+        peak_price = None
+        for j, p in enumerate(future_prices):
+            if p >= peak_threshold:
+                peak_rel_idx = j
+                peak_price = p
+                break
+
+        # Kein Peak in Sicht -> keine Vorplanung (sonst würden wir “immer” laden)
+        if peak_rel_idx is None or peak_rel_idx < 1:
+            return None
+
+        # Fenster bis zum Peak (ohne Peak-Slot selbst)
+        pre_peak = future_prices[:peak_rel_idx]
+        if len(pre_peak) < 4:
+            return None
+
+        # Billigfenster = günstigste 25% vor dem Peak
+        sorted_pre = sorted(pre_peak)
+        cheap_count = max(int(len(sorted_pre) * 0.25), 1)
+        cheap_threshold = sorted_pre[cheap_count - 1]  # Preisgrenze für "Billig"
+
+        # Sind wir gerade "billig genug"?
+        if float(price_now) <= float(cheap_threshold):
+            # -> jetzt Laden so stark wie möglich
+            watts = max(float(max_charge), 0.0)
+            return {
+                "action": "charge",
+                "watts": watts,
+                "reason": f"planning_charge_now(price={price_now:.4f}<=cheap_thr={cheap_threshold:.4f}, peak_thr={peak_threshold:.4f})",
+                "cheap_threshold": cheap_threshold,
+                "peak_threshold": peak_threshold,
+                "peak_price": peak_price,
+                "peak_in_slots": peak_rel_idx,
+            }
+
+        # Optional: Kurz vor Peak (< 1h) auch laden, selbst wenn nicht ganz im Billig-Quartil
+        # (damit du "soweit es das Billigfenster zulässt" maximal voll wirst)
+        if peak_rel_idx <= 4 and float(price_now) < float(peak_threshold):
+            watts = max(float(max_charge), 0.0)
+            return {
+                "action": "charge",
+                "watts": watts,
+                "reason": f"planning_last_chance(peak_in_slots={peak_rel_idx}, price={price_now:.4f}<peak_thr={peak_threshold:.4f})",
+                "cheap_threshold": cheap_threshold,
+                "peak_threshold": peak_threshold,
+                "peak_price": peak_price,
+                "peak_in_slots": peak_rel_idx,
+            }
+
+        return None
+        
     # --------------------------------------------------
     async def _async_update_data(self) -> dict[str, Any]:
         try:
