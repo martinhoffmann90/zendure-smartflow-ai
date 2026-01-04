@@ -698,7 +698,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     					 self._persist["planning_target_soc"] = None
     					 self._persist["planning_next_peak"] = None
     					 self._persist["planning_reason"] = None
-                        
+                
+                	 else:
+                      
                     # -----------------------------
                     # AUTOMATIC / SUMMER / WINTER
                     # -----------------------------
