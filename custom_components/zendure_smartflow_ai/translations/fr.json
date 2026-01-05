@@ -48,24 +48,22 @@
         "state": {
           "init": "Initialisation",
           "ok": "OK",
-          "sensor_invalid": "Données des capteurs invalides",
+          "sensor_invalid": "Données capteurs invalides",
           "price_invalid": "Données de prix invalides"
         }
       },
-
       "ai_status": {
         "name": "Statut IA",
         "state": {
           "standby": "Veille",
-          "charge_surplus": "Charge",
+          "charge_surplus": "Charge (surplus PV)",
           "cover_deficit": "Compensation du déficit réseau",
           "expensive_discharge": "Décharge (cher)",
-          "very_expensive_force": "Décharge (très cher)",
+          "very_expensive_force": "Décharge forcée (très cher)",
           "emergency_charge": "Charge d'urgence",
           "manual": "Mode manuel"
         }
       },
-
       "recommendation": {
         "name": "Recommandation IA",
         "state": {
@@ -80,37 +78,38 @@
         "name": "Raison de la décision",
         "state": {
           "idle": "Inactif (aucune action requise)",
-
-          "emergency_latched_charge": "Charge d'urgence active (sécurité)",
+          "emergency_latched_charge": "Charge d'urgence active (verrouillée)",
           "manual_mode": "Mode manuel actif",
           "manual_charge": "Charge manuelle",
           "manual_discharge": "Décharge manuelle",
-
           "summer_cover_deficit": "Mode été : compensation du déficit réseau",
           "pv_surplus_charge": "Charge avec surplus photovoltaïque",
-
-          "expensive_discharge": "Décharge en raison d'un prix élevé",
           "very_expensive_force_discharge": "Décharge forcée en raison d'un prix très élevé",
-
-          "planning_charge": "Planification tarifaire : période de charge avantageuse",
-          "planning_last_chance": "Planification tarifaire : dernière opportunité avant le pic",
-
+          "expensive_discharge": "Décharge en raison d'un prix élevé",
           "standby_no_condition_met": "Veille (aucune condition remplie)"
         }
       },
 
-      "planning_active": {
-        "name": "Planification tarifaire active"
+      "planning_status": {
+        "name": "Statut de planification des prix",
+        "state": {
+          "not_checked": "Non vérifié",
+          "sensor_invalid": "Données capteurs invalides",
+          "planning_inactive_mode": "Inactif (mode)",
+          "planning_blocked_soc_full": "Bloqué (SoC plein)",
+          "planning_blocked_pv_surplus": "Bloqué (surplus PV)",
+          "planning_no_price_now": "Pas de prix actuel",
+          "planning_no_price_data": "Pas de données de prix futures",
+          "planning_no_peak_detected": "Aucun pic de prix détecté",
+          "planning_peak_detected_insufficient_window": "Pic détecté, mais fenêtre trop courte",
+          "planning_waiting_for_cheap_window": "Pic détecté – attente de la fenêtre de charge",
+          "planning_charge_now": "Fenêtre de charge active – charge en cours",
+          "planning_last_chance": "Dernière chance – charge avant le pic"
+        }
       },
-      "planning_target_soc": {
-        "name": "SoC cible (planification)"
-      },
-      "planning_next_peak": {
-        "name": "Prochain pic tarifaire"
-      },
-      "planning_reason": {
-        "name": "Raison de la planification"
-      },
+      "planning_active": { "name": "Planification des prix active" },
+      "planning_target_soc": { "name": "SoC cible (planification des prix)" },
+      "planning_reason": { "name": "Justification de planification" },
 
       "ai_debug": { "name": "Débogage IA" },
       "house_load": { "name": "Charge du foyer" },
