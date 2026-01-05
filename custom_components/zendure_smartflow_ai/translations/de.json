@@ -52,12 +52,11 @@
           "price_invalid": "Preisdaten ungültig"
         }
       },
-
       "ai_status": {
         "name": "KI-Status",
         "state": {
           "standby": "Standby",
-          "charge_surplus": "Laden",
+          "charge_surplus": "Laden (PV-Überschuss)",
           "cover_deficit": "Bezug ausgleichen",
           "expensive_discharge": "Entladen (teuer)",
           "very_expensive_force": "Entladen (sehr teuer)",
@@ -65,7 +64,6 @@
           "manual": "Manueller Modus"
         }
       },
-
       "recommendation": {
         "name": "KI-Empfehlung",
         "state": {
@@ -80,37 +78,38 @@
         "name": "Entscheidungsgrund",
         "state": {
           "idle": "Leerlauf (keine Aktion erforderlich)",
-
-          "emergency_latched_charge": "Notladung aktiv (Sicherheitsreserve)",
+          "emergency_latched_charge": "Notladung aktiv (verriegelt)",
           "manual_mode": "Manueller Modus aktiv",
           "manual_charge": "Manuelles Laden",
           "manual_discharge": "Manuelles Entladen",
-
           "summer_cover_deficit": "Sommermodus: Netzbezug wird ausgeglichen",
           "pv_surplus_charge": "Laden mit PV-Überschuss",
-
-          "expensive_discharge": "Entladung wegen hohem Strompreis",
           "very_expensive_force_discharge": "Zwangsentladung wegen sehr hohem Strompreis",
-
-          "planning_charge": "Preis-Vorplanung: günstiges Ladefenster",
-          "planning_last_chance": "Preis-Vorplanung: letzte Ladechance vor Preisspitze",
-
+          "expensive_discharge": "Entladung wegen hohem Strompreis",
           "standby_no_condition_met": "Bereitschaft (keine Bedingung erfüllt)"
         }
       },
 
-      "planning_active": {
-        "name": "Preis-Vorplanung aktiv"
+      "planning_status": {
+        "name": "Preisplanung Status",
+        "state": {
+          "not_checked": "Nicht geprüft",
+          "sensor_invalid": "Sensordaten ungültig",
+          "planning_inactive_mode": "Inaktiv (Modus)",
+          "planning_blocked_soc_full": "Blockiert (SoC voll)",
+          "planning_blocked_pv_surplus": "Blockiert (PV-Überschuss)",
+          "planning_no_price_now": "Kein aktueller Preis",
+          "planning_no_price_data": "Keine Preisdaten (Zukunft)",
+          "planning_no_peak_detected": "Keine Preisspitze erkannt",
+          "planning_peak_detected_insufficient_window": "Preisspitze erkannt, aber Fenster zu klein",
+          "planning_waiting_for_cheap_window": "Preisspitze erkannt – warte auf Ladezone",
+          "planning_charge_now": "Ladezone aktiv – lädt jetzt",
+          "planning_last_chance": "Letzte Chance – lädt vor Preisspitze"
+        }
       },
-      "planning_target_soc": {
-        "name": "Ziel-SoC (Preis-Vorplanung)"
-      },
-      "planning_next_peak": {
-        "name": "Nächste Preisspitze (Planung)"
-      },
-      "planning_reason": {
-        "name": "Planungsbegründung"
-      },
+      "planning_active": { "name": "Preisvorplanung aktiv" },
+      "planning_target_soc": { "name": "Ziel-SoC Preis-Vorplanung" },
+      "planning_reason": { "name": "Planungsbegründung" },
 
       "ai_debug": { "name": "KI-Debug" },
       "house_load": { "name": "Hauslast" },
