@@ -29,7 +29,6 @@ from .const import (
     CONF_GRID_EXPORT_ENTITY,
 
     GRID_MODE_SPLIT,
-    GRID_MODE_SIGNED,
 
     # settings keys
     SETTING_SOC_MIN,
@@ -136,7 +135,7 @@ class ZendureSmartFlowAICoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ac_mode=str(entry.data[CONF_AC_MODE_ENTITY]),
             input_limit=str(entry.data[CONF_INPUT_LIMIT_ENTITY]),
             output_limit=str(entry.data[CONF_OUTPUT_LIMIT_ENTITY]),
-            grid_mode=str(entry.data.get(CONF_GRID_MODE, GRID_MODE_SIGNED)),
+            grid_mode=str(entry.data.get(CONF_GRID_MODE, GRID_MODE_SPLIT)),
             grid_power=entry.data.get(CONF_GRID_POWER_ENTITY),
             grid_import=entry.data.get(CONF_GRID_IMPORT_ENTITY),
             grid_export=entry.data.get(CONF_GRID_EXPORT_ENTITY),
