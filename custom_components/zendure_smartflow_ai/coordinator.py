@@ -863,7 +863,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "pv_w": pv,
                 "surplus": surplus,
                 "deficit": deficit,
-                 "house_load": int(round(house_load, 0)),
+                "house_load": int(round(house_load, 0)),
                 "price_now": price_now,
                 "expensive_threshold": expensive,
                 "very_expensive_threshold": very_expensive,
