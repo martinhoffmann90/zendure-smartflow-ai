@@ -52,20 +52,18 @@
           "price_invalid": "Invalid price data"
         }
       },
-
       "ai_status": {
         "name": "AI status",
         "state": {
           "standby": "Standby",
-          "charge_surplus": "Charging",
+          "charge_surplus": "Charging (PV surplus)",
           "cover_deficit": "Covering grid deficit",
           "expensive_discharge": "Discharging (expensive)",
-          "very_expensive_force": "Discharging (very expensive)",
+          "very_expensive_force": "Forced discharge (very expensive)",
           "emergency_charge": "Emergency charge",
           "manual": "Manual mode"
         }
       },
-
       "recommendation": {
         "name": "AI recommendation",
         "state": {
@@ -80,37 +78,38 @@
         "name": "Decision reason",
         "state": {
           "idle": "Idle (no action required)",
-
-          "emergency_latched_charge": "Emergency charge active (safety reserve)",
+          "emergency_latched_charge": "Emergency charge active (latched)",
           "manual_mode": "Manual mode active",
           "manual_charge": "Manual charging",
           "manual_discharge": "Manual discharging",
-
           "summer_cover_deficit": "Summer mode: covering grid deficit",
           "pv_surplus_charge": "Charging from PV surplus",
-
-          "expensive_discharge": "Discharging due to high electricity price",
-          "very_expensive_force_discharge": "Forced discharge due to very high electricity price",
-
-          "planning_charge": "Price planning: cheap charging window",
-          "planning_last_chance": "Price planning: last chance before price peak",
-
+          "very_expensive_force_discharge": "Forced discharge due to very high price",
+          "expensive_discharge": "Discharge due to high price",
           "standby_no_condition_met": "Standby (no condition met)"
         }
       },
 
-      "planning_active": {
-        "name": "Price planning active"
+      "planning_status": {
+        "name": "Price planning status",
+        "state": {
+          "not_checked": "Not checked",
+          "sensor_invalid": "Invalid sensor data",
+          "planning_inactive_mode": "Inactive (mode)",
+          "planning_blocked_soc_full": "Blocked (SoC full)",
+          "planning_blocked_pv_surplus": "Blocked (PV surplus)",
+          "planning_no_price_now": "No current price",
+          "planning_no_price_data": "No future price data",
+          "planning_no_peak_detected": "No price peak detected",
+          "planning_peak_detected_insufficient_window": "Peak detected, but window too short",
+          "planning_waiting_for_cheap_window": "Peak detected – waiting for charge window",
+          "planning_charge_now": "Charge window active – charging now",
+          "planning_last_chance": "Last chance – charging before peak"
+        }
       },
-      "planning_target_soc": {
-        "name": "Target SoC (price planning)"
-      },
-      "planning_next_peak": {
-        "name": "Next price peak (planning)"
-      },
-      "planning_reason": {
-        "name": "Planning reason"
-      },
+      "planning_active": { "name": "Price planning active" },
+      "planning_target_soc": { "name": "Price planning target SoC" },
+      "planning_reason": { "name": "Planning reason" },
 
       "ai_debug": { "name": "AI debug" },
       "house_load": { "name": "House load" },
