@@ -28,6 +28,7 @@ from .const import (
     CONF_GRID_IMPORT_ENTITY,
     CONF_GRID_EXPORT_ENTITY,
 
+    # grid modes
     GRID_MODE_SPLIT,
 
     # settings keys
@@ -36,7 +37,7 @@ from .const import (
     SETTING_MAX_CHARGE,
     SETTING_MAX_DISCHARGE,
     SETTING_PRICE_THRESHOLD,
-    SETTING_VERY_EXPENSIVE_THRESHOLD
+    SETTING_VERY_EXPENSIVE_THRESHOLD,
     SETTING_EMERGENCY_SOC,
     SETTING_EMERGENCY_W,
     SETTING_PROFIT_MARGIN_PCT,
@@ -49,7 +50,7 @@ from .const import (
     DEFAULT_MAX_CHARGE,
     DEFAULT_MAX_DISCHARGE,
     DEFAULT_PRICE_THRESHOLD,
-    DEFAULT_VERY_EXPENSIVE_THR,
+    DEFAULT_VERY_EXPENSIVE_THRESHOLD,
     DEFAULT_EMERGENCY_SOC,
     DEFAULT_EMERGENCY_W,
     DEFAULT_PROFIT_MARGIN_PCT,
@@ -520,7 +521,7 @@ class ZendureSmartFlowAICoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             expensive = self._get_setting(SETTING_PRICE_THRESHOLD, DEFAULT_PRICE_THRESHOLD)
             very_expensive = self._get_setting(
-                SETTING_VERY_EXPENSIVE_THRESHOLD, DEFAULT_VERY_EXPENSIVE_THR
+                SETTING_VERY_EXPENSIVE_THRESHOLD, DEFAULT_VERY_EXPENSIVE_THRESHOLD
             )
             emergency_soc = self._get_setting(SETTING_EMERGENCY_SOC, DEFAULT_EMERGENCY_SOC)
             emergency_w = self._get_setting(SETTING_EMERGENCY_W, DEFAULT_EMERGENCY_W)
