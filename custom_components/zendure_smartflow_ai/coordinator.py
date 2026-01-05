@@ -121,7 +121,7 @@ class SelectedEntities:
     grid_export: str | None
 
 
-class ZendureSmartFlowAICoordinator(DataUpdateCoordinator[dict[str, Any]]):
+class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.hass = hass
         self.entry = entry
