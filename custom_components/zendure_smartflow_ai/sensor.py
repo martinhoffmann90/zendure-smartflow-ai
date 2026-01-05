@@ -22,6 +22,21 @@ from .const import (
     RECO_ENUMS,
 )
 
+PLANNING_STATUS_ENUMS = [
+    "not_checked",
+    "sensor_invalid",
+    "planning_inactive_mode",
+    "planning_blocked_soc_full",
+    "planning_blocked_pv_surplus",
+    "planning_no_price_now",
+    "planning_no_price_data",
+    "planning_no_peak_detected",
+    "planning_peak_detected_insufficient_window",
+    "planning_waiting_for_cheap_window",
+    "planning_charge_now",
+    "planning_last_chance",
+]
+
 
 @dataclass(frozen=True, kw_only=True)
 class ZendureSensorEntityDescription(SensorEntityDescription):
@@ -29,7 +44,7 @@ class ZendureSensorEntityDescription(SensorEntityDescription):
 
 
 SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
-    # ENUM states -> translated via strings/*
+    # ENUM states -> translated via strings/* "state" mapping
     ZendureSensorEntityDescription(
         key="status",
         translation_key="status",
@@ -55,7 +70,7 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         options=RECO_ENUMS,
     ),
 
-    # Debug / Reason
+    # Debug remains raw (string)
     ZendureSensorEntityDescription(
         key="ai_debug",
         translation_key="ai_debug",
@@ -69,31 +84,33 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         icon="mdi:head-question-outline",
     ),
 
-    # --- V1.2 Preis-Vorplanung (Debug / Transparenz) ---
+    # --- Planning transparency (V1.2) ---
+    ZendureSensorEntityDescription(
+        key="planning_status",
+        translation_key="planning_status",
+        runtime_key="planning_status",
+        icon="mdi:timeline-alert",
+        device_class=SensorDeviceClass.ENUM,
+        options=PLANNING_STATUS_ENUMS,
+    ),
     ZendureSensorEntityDescription(
         key="planning_active",
         translation_key="planning_active",
         runtime_key="planning_active",
-        icon="mdi:calendar-check",
+        icon="mdi:flash",
     ),
     ZendureSensorEntityDescription(
         key="planning_target_soc",
         translation_key="planning_target_soc",
         runtime_key="planning_target_soc",
-        icon="mdi:battery-charging-90",
+        icon="mdi:battery-high",
         native_unit_of_measurement="%",
-    ),
-    ZendureSensorEntityDescription(
-        key="planning_next_peak",
-        translation_key="planning_next_peak",
-        runtime_key="planning_next_peak",
-        icon="mdi:chart-line",
     ),
     ZendureSensorEntityDescription(
         key="planning_reason",
         translation_key="planning_reason",
         runtime_key="planning_reason",
-        icon="mdi:comment-text-outline",
+        icon="mdi:text-long",
     ),
 
     # Numeric sensors
@@ -128,24 +145,15 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
 )
 
 
-async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    add_entities: AddEntitiesCallback,
-) -> None:
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add_entities: AddEntitiesCallback) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    add_entities(ZendureSmartFlowSensor(entry, coordinator, d) for d in SENSORS)
+    add_entities([ZendureSmartFlowSensor(entry, coordinator, d) for d in SENSORS])
 
 
 class ZendureSmartFlowSensor(SensorEntity):
     _attr_has_entity_name = True
 
-    def __init__(
-        self,
-        entry: ConfigEntry,
-        coordinator,
-        description: ZendureSensorEntityDescription,
-    ) -> None:
+    def __init__(self, entry: ConfigEntry, coordinator, description: ZendureSensorEntityDescription) -> None:
         self.entity_description = description
         self.coordinator = coordinator
         self._entry = entry
@@ -169,17 +177,17 @@ class ZendureSmartFlowSensor(SensorEntity):
         details = data.get("details") or {}
         key = self.entity_description.runtime_key
 
-        # Explicit numeric mappings
+        # values live in details for numeric/planning
         if key in (
             "house_load",
             "price_now",
             "avg_charge_price",
             "profit_eur",
+            "planning_status",
+            "planning_active",
+            "planning_target_soc",
+            "planning_reason",
         ):
-            return details.get(key)
-
-        # V1.2 planning values live in details
-        if key.startswith("planning_"):
             return details.get(key)
 
         return data.get(key)
@@ -187,16 +195,21 @@ class ZendureSmartFlowSensor(SensorEntity):
     @property
     def extra_state_attributes(self):
         data = self.coordinator.data or {}
+        details = data.get("details") or {}
+
+        # attach full details for debug-like sensors + planning
         if self.entity_description.key in (
             "ai_status",
             "recommendation",
             "status",
             "ai_debug",
+            "planning_status",
+            "planning_active",
+            "planning_target_soc",
+            "planning_reason",
         ):
-            return data.get("details")
+            return details
         return None
 
     async def async_added_to_hass(self) -> None:
-        self.async_on_remove(
-            self.coordinator.async_add_listener(self.async_write_ha_state)
-        )
+        self.async_on_remove(self.coordinator.async_add_listener(self.async_write_ha_state))
