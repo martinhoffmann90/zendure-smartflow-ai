@@ -56,11 +56,11 @@
         "name": "Statut IA",
         "state": {
           "standby": "Veille",
-          "charge_surplus": "Charge (surplus PV)",
-          "cover_deficit": "Compensation du déficit réseau",
-          "expensive_discharge": "Décharge (cher)",
-          "very_expensive_force": "Décharge forcée (très cher)",
-          "emergency_charge": "Charge d'urgence",
+          "charge_surplus": "Charge avec surplus photovoltaïque",
+          "cover_deficit": "Compensation de la consommation réseau par la batterie",
+          "expensive_discharge": "Décharge en raison d’un prix de l’électricité élevé",
+          "very_expensive_force": "Décharge maximale en raison d’un pic de prix extrême",
+          "emergency_charge": "Charge d’urgence active",
           "manual": "Mode manuel"
         }
       },
@@ -82,11 +82,13 @@
           "manual_mode": "Mode manuel actif",
           "manual_charge": "Charge manuelle",
           "manual_discharge": "Décharge manuelle",
-          "summer_cover_deficit": "Mode été : compensation du déficit réseau",
+          "summer_cover_deficit": "Mode été : compensation de la consommation réseau",
           "pv_surplus_charge": "Charge avec surplus photovoltaïque",
           "very_expensive_force_discharge": "Décharge forcée en raison d'un prix très élevé",
+          "very_expensive_force_discharge_unlimited": "Pic de prix extrême – décharge illimitée",
           "expensive_discharge": "Décharge en raison d'un prix élevé",
-          "standby_no_condition_met": "Veille (aucune condition remplie)"
+          "planning_charge_now": "Charge planifiée active",
+          "standby_no_condition_met": "Aucune condition de règle remplie"
         }
       },
 
@@ -95,16 +97,16 @@
         "state": {
           "not_checked": "Non vérifié",
           "sensor_invalid": "Données capteurs invalides",
-          "planning_inactive_mode": "Inactif (mode)",
-          "planning_blocked_soc_full": "Bloqué (SoC plein)",
-          "planning_blocked_pv_surplus": "Bloqué (surplus PV)",
-          "planning_no_price_now": "Pas de prix actuel",
-          "planning_no_price_data": "Pas de données de prix futures",
-          "planning_no_peak_detected": "Aucun pic de prix détecté",
-          "planning_peak_detected_insufficient_window": "Pic détecté, mais fenêtre trop courte",
-          "planning_waiting_for_cheap_window": "Pic détecté – attente de la fenêtre de charge",
-          "planning_charge_now": "Fenêtre de charge active – charge en cours",
-          "planning_last_chance": "Dernière chance – charge avant le pic"
+          "planning_inactive_mode": "Planification désactivée (mode)",
+          "planning_blocked_soc_full": "Batterie pleine – planification bloquée",
+          "planning_blocked_pv_surplus": "Surplus PV – planification bloquée",
+          "planning_no_price_now": "Aucun prix actuel de l’électricité",
+          "planning_no_price_data": "Aucune donnée de prix disponible",
+          "planning_no_peak_detected": "Aucun pic de prix pertinent détecté",
+          "planning_waiting_for_cheap_window": "En attente d’une fenêtre de charge bon marché",
+          "planning_charge_now": "Charge planifiée en cours",
+          "planning_last_chance": "Dernière opportunité avant le pic de prix",
+          "planning_peak_detected_insufficient_window": "Pic de prix détecté, mais fenêtre trop courte"
         }
       },
       "planning_active": { "name": "Planification des prix active" },
