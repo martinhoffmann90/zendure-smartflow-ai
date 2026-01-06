@@ -8,21 +8,21 @@
 
 ## Überblick
 
-**Zendure SmartFlow AI** ist eine Home-Assistant-Integration zur **stabilen, wirtschaftlichen und sicheren** Steuerung von Zendure-SolarFlow-Systemen.
+**Zendure SmartFlow AI** ist eine Home-Assistant-Integration zur **stabilen, wirtschaftlichen und transparenten** Steuerung von Zendure-SolarFlow-Systemen.
 
-Ab **Version 1.2.0** kombiniert die Integration:
+Ab **Version 1.2.x** kombiniert die Integration:
 
 - ☀️ **PV-Erzeugung**
-- 🏠 **Hausverbrauch**
+- 🏠 **Hauslast (Gesamtverbrauch)**
 - 🔋 **Batterie-SoC**
-- 💶 **Strompreise (optional, inkl. Vorplanung)**
+- 💶 **Dynamische Strompreise (optional, inkl. Vorplanung)**
 
 zu **kontextbasierten Lade- und Entladeentscheidungen**.
 
-👉 Ziel ist **nicht maximale Aktivität**, sondern **optimales Verhalten**:
-- Laden, wenn es sinnvoll ist  
-- Entladen, wenn es wirtschaftlich ist  
-- Stillstand, wenn nichts gewonnen wird  
+👉 Ziel ist **nicht maximale Aktivität**, sondern **maximaler Nutzen**:
+- Laden, wenn es wirtschaftlich sinnvoll ist  
+- Entladen, wenn Netzbezug vermieden werden kann  
+- Stillstand, wenn keine Verbesserung möglich ist  
 
 ---
 
@@ -37,11 +37,11 @@ Viele bestehende Lösungen arbeiten mit:
 
 > **Kontext statt Regeln.**
 
-Jede Entscheidung basiert immer auf der **aktuellen Gesamtsituation**:
-- Wie hoch ist die PV-Leistung?
-- Wie hoch ist die Hauslast?
+Jede Entscheidung basiert auf der **aktuellen Gesamtsituation**:
+- Wie hoch ist die aktuelle Hauslast?
+- Gibt es Netzbezug oder Einspeisung?
 - Wie voll ist der Akku?
-- Wie teuer ist Strom **jetzt** – und **später**?
+- Wie teuer ist Strom **jetzt** – und **in naher Zukunft**?
 
 ---
 
@@ -50,24 +50,24 @@ Jede Entscheidung basiert immer auf der **aktuellen Gesamtsituation**:
 Die Integration bewertet zyklisch:
 
 - PV-Leistung  
-- Hausverbrauch  
-- Netzbezug / Einspeisung  
+- Hauslast (Netzbezug + Eigenverbrauch)  
+- Netzdefizit / Einspeiseüberschuss  
 - Batterie-SoC  
-- aktueller Strompreis (optional)  
+- aktuellen Strompreis (optional)  
 
-Daraus ergeben sich drei Aktionen:
+Daraus ergeben sich drei mögliche Aktionen:
 - 🔌 **Laden**
 - 🔋 **Entladen**
 - ⏸️ **Nichts tun**
 
-Die Logik ist **bewusst konservativ**:
-- Kein unnötiges Entladen  
-- Kein sinnloses Laden  
-- Sicherheit hat immer Vorrang  
+Die Logik ist **bewusst nachvollziehbar**:
+- Keine unnötigen Aktionen  
+- Keine verdeckten Automatismen  
+- Sicherheit & Wirtschaftlichkeit haben Vorrang  
 
 ---
 
-## 🧠 Neu ab Version 1.2.0: Preis-Vorplanung
+## 🧠 Preis-Vorplanung (ab Version 1.2.0)
 
 ### Was bedeutet Preis-Vorplanung?
 
@@ -75,61 +75,60 @@ Die KI betrachtet **nicht nur den aktuellen Strompreis**, sondern analysiert **k
 
 Ziel:
 
-> **Vor einer bekannten Preisspitze möglichst günstig laden –  
-aber nur, wenn es sinnvoll ist.**
+> **Vor einer bekannten Preisspitze günstig Energie speichern –  
+aber nur, wenn es wirklich sinnvoll ist.**
 
 ---
 
 ### Wie funktioniert das?
 
-1. Die KI sucht die **nächste relevante Preisspitze**
-   - sehr teuer **oder**
-   - teuer + konfigurierbare Gewinnmarge
-
-2. Der Zeitraum **vor dieser Spitze** wird analysiert
-
-3. Daraus wird ein **„Billigfenster“** (günstigste ~25 %) ermittelt
-
-4. **Nur wenn:**
-   - aktuell ein günstiger Slot aktiv ist  
-   - kein PV-Überschuss vorhanden ist  
+1. Analyse der kommenden Preisentwicklung  
+2. Erkennung einer relevanten Preisspitze:
+   - **sehr teuer** oder  
+   - **teuer + konfigurierbare Gewinnmarge**
+3. Bewertung des Zeitraums **vor dieser Spitze**
+4. Laden aus dem Netz **nur wenn**:
+   - aktuell ein günstiger Zeitraum aktiv ist  
+   - kein relevanter PV-Überschuss vorhanden ist  
    - der Akku nicht voll ist  
 
-👉 wird **gezielt aus dem Netz geladen**
+➡️ **Kein Dauerladen, kein Zwang, keine Zeitpläne**
 
 ---
 
-### Wichtig zu wissen (absichtlich so!)
+### Wichtig zu wissen
 
 - Preis-Vorplanung ist **situativ**
-- Sie ist **nicht dauerhaft aktiv**
+- Sie ist **nicht permanent aktiv**
 - Sensoren können korrekt auf **`unknown`** stehen
 
 **Beispiele:**
 - Kein Peak in Sicht → keine Planung  
-- Akku bereits voll → keine Planung  
-- PV-Überschuss vorhanden → Planung pausiert  
+- Akku voll → keine Planung  
+- PV-Überschuss → Planung pausiert  
 
-➡️ **`unknown` oder `false` bedeutet nicht „Fehler“, sondern „keine Aktion nötig“.**
+➡️ **`unknown` bedeutet „keine Aktion nötig“, nicht „Fehler“.**
 
 ---
 
-## Anti-Schwingung & Regelstabilität (ab 1.2.0)
+## ⚡ Extrem teure Strompreise (ab Version 1.2.1)
 
-Ein häufiges Problem bei Batterie-Regelungen sind **Leistungs-Oszillationen**, z. B.:
+Ab **v1.2.1** haben **extreme Preisspitzen absolute Priorität**.
 
-1200 W Defizit → 1100 W Entladung
-100 W Defizit  → 100 W Entladung
-1100 W Defizit → …
+### Sehr-Teuer-Schwelle
+Wird der aktuelle Strompreis **≥ Sehr-Teuer-Schwelle**, dann gilt:
 
-**Zendure SmartFlow AI verhindert das aktiv durch:**
+- Entladung hat **immer Vorrang**
+- unabhängig vom Modus (Sommer / Winter / Automatik)
+- unabhängig von PV-Überschuss
 
-- Mindest-Haltezeiten für Entladeleistungen  
-- Leistungs-Rampen (keine Sprünge)  
-- Hysterese gegen Messrauschen  
-- Sauberes Start-/Stop-Verhalten  
+### Temporär unbegrenzte Entladung
+In dieser Situation:
+- wird das konfigurierte Entlade-Limit **temporär ignoriert**
+- es wird **genau so viel Leistung abgegeben wie benötigt**
+- begrenzt nur durch die Hardware (max. 2400 W)
 
-➡️ Ergebnis: **ruhige, stabile Regelung ohne Flattern**
+➡️ Ziel: **Netzbezug bei extremen Preisen maximal vermeiden**
 
 ---
 
@@ -140,21 +139,21 @@ Ein häufiges Problem bei Batterie-Regelungen sind **Leistungs-Oszillationen**, 
 - PV-Überschuss wird genutzt
 - Teurer Strom wird vermieden
 - Preis-Vorplanung aktiv
-- Optimal für ~95 % aller Nutzer
+- Sehr-teure Preise haben immer Vorrang
 
 ---
 
 ### 🔹 Sommer
 
-- Fokus auf Eigenverbrauch
-- Entladung **nur bei sehr teurem Strom**
-- Keine aggressive Preis-Strategie
+- Fokus auf maximale Autarkie
+- Akku deckt Hauslast
+- Sehr-teure Preisspitzen haben Vorrang vor PV-Logik
 
 ---
 
 ### 🔹 Winter
 
-- Preisorientierte Nutzung des Akkus
+- Fokus auf Kostenersparnis
 - Entladung bereits bei „teurem“ Strom
 - Preis-Vorplanung aktiv
 
@@ -162,9 +161,9 @@ Ein häufiges Problem bei Batterie-Regelungen sind **Leistungs-Oszillationen**, 
 
 ### 🔹 Manuell
 
-- KI greift nicht ein
+- Keine KI-Eingriffe
 - Laden / Entladen / Standby manuell
-- Ideal für Tests oder Sonderfälle
+- Ideal für Tests & Sonderfälle
 
 ---
 
@@ -181,7 +180,7 @@ Ein häufiges Problem bei Batterie-Regelungen sind **Leistungs-Oszillationen**, 
 ## 🧯 Notladefunktion (verriegelt)
 
 - Aktivierung bei kritischem SoC
-- Laden bis zum SoC Minimum
+- Laden bis mindestens SoC-Minimum
 - Automatisches Beenden
 - Kein Dauer-Notmodus
 
@@ -195,18 +194,19 @@ Ein häufiges Problem bei Batterie-Regelungen sind **Leistungs-Oszillationen**, 
 
 ### Number
 - SoC Minimum / Maximum
-- Max. Lade- & Entladeleistung
+- Max. Ladeleistung
+- Max. Entladeleistung (Normalbetrieb)
 - Notladeleistung
 - Notladung ab SoC
 - Sehr-Teuer-Schwelle
-- Gewinnmarge
+- Gewinnmarge (%)
 
 ### Sensoren
 - Systemstatus
 - KI-Status
 - KI-Empfehlung
 - Entscheidungsgrund
-- Hauslast
+- **Hauslast (Gesamtverbrauch)**
 - Aktueller Strompreis
 - Ø Ladepreis Akku
 - Gewinn / Ersparnis
@@ -220,9 +220,9 @@ Ein häufiges Problem bei Batterie-Regelungen sind **Leistungs-Oszillationen**, 
 
 - Home Assistant (aktuelle Version)
 - Zendure SolarFlow
-- Batterie-SoC Sensor
+- Batterie-SoC-Sensor
 - PV-Leistungssensor
-- Optional: Strompreis-Sensor (z. B. Tibber)
+- Optional: dynamischer Strompreis-Sensor (z. B. Tibber)
 
 ---
 
@@ -236,7 +236,7 @@ Ein häufiges Problem bei Batterie-Regelungen sind **Leistungs-Oszillationen**, 
 4. Integration hinzufügen  
 
 ### HACS
-> Ab Version 1.x vorgesehen
+> geplant ab Version 1.x
 
 ---
 
@@ -248,4 +248,4 @@ Ein häufiges Problem bei Batterie-Regelungen sind **Leistungs-Oszillationen**, 
 
 ---
 
-**Zendure SmartFlow AI – ruhig, erklärbar, wirtschaftlich.**
+**Zendure SmartFlow AI – erklärbar, stabil, wirtschaftlich.**
