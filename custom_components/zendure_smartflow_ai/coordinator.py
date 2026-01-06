@@ -643,8 +643,22 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     if not planning_applied:
                         decision_reason = "automatic_idle"
 
+                        # VERY EXPENSIVE always has absolute priority
+                        if price_now is not None and price_now >= very_expensive and soc > (soc_min + 0.2):
+                            ai_status = AI_STATUS_VERY_EXPENSIVE_FORCE
+                            recommendation = RECO_DISCHARGE
+                            ac_mode = ZENDURE_MODE_OUTPUT
+                            in_w = 0.0
+
+                            needed_w = 0.0
+                            if deficit is not None and deficit > 0:
+                                needed_w = float(deficit)
+
+                            out_w = min(needed_w, 2400.0)
+                            decision_reason = "very_expensive_force_discharge_unlimited"
+                            
                         # summer: cover deficit if possible
-                        if is_summer and deficit is not None and deficit > 0 and soc > soc_min:
+                        elif is_summer and deficit is not None and deficit > 0 and soc > soc_min:
                             ai_status = AI_STATUS_COVER_DEFICIT
                             recommendation = RECO_DISCHARGE
                             ac_mode = ZENDURE_MODE_OUTPUT
@@ -670,36 +684,21 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             out_w = max_discharge
                             decision_reason = "cover_deficit"
 
-                        # price-based discharge (only if deficit exists)
-                        if price_now is not None:
-                            if (
-                               price_now >= very_expensive
-                               and soc > soc_min
-                            ):
-                               ai_status = AI_STATUS_VERY_EXPENSIVE_FORCE
-                               recommendation = RECO_DISCHARGE
-                               ac_mode = ZENDURE_MODE_OUTPUT
-                               in_w = 0.0
+                        elif (
+                            price_now is not None
+                            and price_now >= expensive
+                            and price_now < very_expensive
+                            and soc > soc_min
+                            and deficit is not None
+                            and deficit > 0
+                        ):
 
-                               # VERY EXPENSIVE: cover full house load, ignore discharge limit
-                               needed_w = 0.0
-                               if deficit is not None and deficit > 0:
-                                   needed_w = float(deficit)
-
-                               out_w = min(needed_w, 2400.0)
-                               decision_reason = "very_expensive_force_discharge_unlimited"
-
-                            elif (
-                                price_now >= expensive
-                                and soc > soc_min
-                                and (deficit is not None and deficit > 0)
-                            ):
-                                ai_status = AI_STATUS_EXPENSIVE_DISCHARGE
-                                recommendation = RECO_DISCHARGE
-                                ac_mode = ZENDURE_MODE_OUTPUT
-                                in_w = 0.0
-                                out_w = max_discharge
-                                decision_reason = "expensive_discharge"
+                            ai_status = AI_STATUS_EXPENSIVE_DISCHARGE
+                            recommendation = RECO_DISCHARGE
+                            ac_mode = ZENDURE_MODE_OUTPUT
+                            in_w = 0.0
+                            out_w = max_discharge
+                            decision_reason = "expensive_discharge"
 
                         if recommendation == RECO_STANDBY:
                             ai_status = AI_STATUS_STANDBY
