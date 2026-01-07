@@ -633,7 +633,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
                         if planning.get("action") == "charge":
                             planning_applied = True
-                            ai_status = AI_STATUS_CHARGE_SURPLUS
                             recommendation = RECO_CHARGE
                             ac_mode = ZENDURE_MODE_INPUT
                             in_w = min(max_charge, float(planning.get("watts") or max_charge))
