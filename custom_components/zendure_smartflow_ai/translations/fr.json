@@ -1,15 +1,4 @@
 {
-  "title": "Zendure SmartFlow AI",
-
-  "config": {
-    "step": {
-      "user": {
-        "title": "Configurer Zendure SmartFlow AI",
-        "description": "Connectez vos capteurs Zendure et énergétiques pour un contrôle intelligent."
-      }
-    }
-  },
-
   "entity": {
     "select": {
       "ai_mode": {
@@ -48,7 +37,7 @@
           "standby": "Veille",
           "charge_surplus": "Charge avec surplus photovoltaïque",
           "cover_deficit": "Compensation de la consommation réseau par la batterie",
-          "expensive_discharge": "Décharge en raison d’un prix de l’électricité élevé",
+          "expensive_discharge": "Décharge en raison d’un prix élevé",
           "very_expensive_force": "Décharge maximale en raison d’un pic de prix extrême",
           "emergency_charge": "Charge d’urgence active",
           "manual": "Mode manuel"
@@ -76,7 +65,7 @@
           "summer_cover_deficit": "Mode été : compensation de la consommation réseau",
           "pv_surplus_charge": "Charge avec surplus photovoltaïque",
           "very_expensive_force_discharge_unlimited": "Pic de prix extrême – décharge illimitée",
-          "expensive_discharge": "Décharge en raison d'un prix élevé",
+          "expensive_discharge": "Décharge en raison d’un prix élevé",
           "planning_charge_now": "Charge planifiée active",
           "standby_no_condition_met": "Aucune condition remplie"
         }
