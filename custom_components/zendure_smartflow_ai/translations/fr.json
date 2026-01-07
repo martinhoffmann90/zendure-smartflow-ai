@@ -13,21 +13,10 @@
   "entity": {
     "select": {
       "ai_mode": {
-        "name": "Mode de fonctionnement",
-        "state": {
-          "automatic": "Automatique",
-          "summer": "Été",
-          "winter": "Hiver",
-          "manual": "Manuel"
-        }
+        "name": "Mode de fonctionnement"
       },
       "manual_action": {
-        "name": "Action manuelle",
-        "state": {
-          "standby": "Veille",
-          "charge": "Charge",
-          "discharge": "Décharge"
-        }
+        "name": "Action manuelle"
       }
     },
 
@@ -52,6 +41,7 @@
           "price_invalid": "Données de prix invalides"
         }
       },
+
       "ai_status": {
         "name": "Statut IA",
         "state": {
@@ -64,13 +54,14 @@
           "manual": "Mode manuel"
         }
       },
+
       "recommendation": {
         "name": "Recommandation IA",
         "state": {
           "standby": "Aucune action",
           "charge": "Charge",
           "discharge": "Décharge",
-          "emergency": "Charge d'urgence"
+          "emergency_charge": "Charge d'urgence"
         }
       },
 
@@ -84,11 +75,10 @@
           "manual_discharge": "Décharge manuelle",
           "summer_cover_deficit": "Mode été : compensation de la consommation réseau",
           "pv_surplus_charge": "Charge avec surplus photovoltaïque",
-          "very_expensive_force_discharge": "Décharge forcée en raison d'un prix très élevé",
           "very_expensive_force_discharge_unlimited": "Pic de prix extrême – décharge illimitée",
           "expensive_discharge": "Décharge en raison d'un prix élevé",
           "planning_charge_now": "Charge planifiée active",
-          "standby_no_condition_met": "Aucune condition de règle remplie"
+          "standby_no_condition_met": "Aucune condition remplie"
         }
       },
 
@@ -109,15 +99,30 @@
           "planning_peak_detected_insufficient_window": "Pic de prix détecté, mais fenêtre trop courte"
         }
       },
+
       "planning_active": { "name": "Planification des prix active" },
       "planning_target_soc": { "name": "SoC cible (planification des prix)" },
-      "planning_reason": { "name": "Justification de planification" },
+      "planning_reason": { "name": "Justification de la planification" },
 
       "ai_debug": { "name": "Débogage IA" },
       "house_load": { "name": "Charge du foyer" },
       "price_now": { "name": "Prix actuel de l'électricité" },
       "avg_charge_price": { "name": "Prix moyen de charge de la batterie" },
       "profit_eur": { "name": "Gain / économies (total)" }
+    }
+  },
+
+  "state": {
+    "select.zendure_smartflow_ai.ai_mode": {
+      "automatic": "Automatique",
+      "summer": "Été",
+      "winter": "Hiver",
+      "manual": "Manuel"
+    },
+    "select.zendure_smartflow_ai.manual_action": {
+      "standby": "Veille",
+      "charge": "Charge",
+      "discharge": "Décharge"
     }
   }
 }
