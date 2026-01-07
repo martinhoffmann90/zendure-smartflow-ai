@@ -2,10 +2,21 @@
   "entity": {
     "select": {
       "ai_mode": {
-        "name": "Mode de fonctionnement"
+        "name": "Mode de fonctionnement",
+        "state": {
+          "automatic": "Automatique",
+          "summer": "Été",
+          "winter": "Hiver",
+          "manual": "Manuel"
+        }
       },
       "manual_action": {
-        "name": "Action manuelle"
+        "name": "Action manuelle",
+        "state": {
+          "standby": "Veille",
+          "charge": "Charge",
+          "discharge": "Décharge"
+        }
       }
     },
 
@@ -98,20 +109,6 @@
       "price_now": { "name": "Prix actuel de l'électricité" },
       "avg_charge_price": { "name": "Prix moyen de charge de la batterie" },
       "profit_eur": { "name": "Gain / économies (total)" }
-    }
-  },
-
-  "state": {
-    "select.zendure_smartflow_ai.ai_mode": {
-      "automatic": "Automatique",
-      "summer": "Été",
-      "winter": "Hiver",
-      "manual": "Manuel"
-    },
-    "select.zendure_smartflow_ai.manual_action": {
-      "standby": "Veille",
-      "charge": "Charge",
-      "discharge": "Décharge"
     }
   }
 }
