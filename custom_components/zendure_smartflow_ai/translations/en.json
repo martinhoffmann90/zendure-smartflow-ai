@@ -13,21 +13,10 @@
   "entity": {
     "select": {
       "ai_mode": {
-        "name": "Operating mode",
-        "state": {
-          "automatic": "Automatic",
-          "summer": "Summer",
-          "winter": "Winter",
-          "manual": "Manual"
-        }
+        "name": "Operating mode"
       },
       "manual_action": {
-        "name": "Manual action",
-        "state": {
-          "standby": "Standby",
-          "charge": "Charge",
-          "discharge": "Discharge"
-        }
+        "name": "Manual action"
       }
     },
 
@@ -52,6 +41,7 @@
           "price_invalid": "Invalid price data"
         }
       },
+
       "ai_status": {
         "name": "AI status",
         "state": {
@@ -64,13 +54,14 @@
           "manual": "Manual mode"
         }
       },
+
       "recommendation": {
         "name": "AI recommendation",
         "state": {
           "standby": "No action",
           "charge": "Charge",
           "discharge": "Discharge",
-          "emergency": "Emergency charge"
+          "emergency_charge": "Emergency charge"
         }
       },
 
@@ -84,7 +75,6 @@
           "manual_discharge": "Manual discharging",
           "summer_cover_deficit": "Summer mode: covering grid consumption",
           "pv_surplus_charge": "Charging from PV surplus",
-          "very_expensive_force_discharge": "Forced discharge due to very high price",
           "very_expensive_force_discharge_unlimited": "Extreme price peak – unlimited discharge",
           "expensive_discharge": "Discharge due to high price",
           "planning_charge_now": "Planned charging active",
@@ -109,6 +99,7 @@
           "planning_peak_detected_insufficient_window": "Price peak detected, but window too short"
         }
       },
+
       "planning_active": { "name": "Price planning active" },
       "planning_target_soc": { "name": "Price planning target SoC" },
       "planning_reason": { "name": "Planning reason" },
@@ -118,6 +109,20 @@
       "price_now": { "name": "Current electricity price" },
       "avg_charge_price": { "name": "Average battery charge price" },
       "profit_eur": { "name": "Profit / savings (total)" }
+    }
+  },
+
+  "state": {
+    "select.zendure_smartflow_ai.ai_mode": {
+      "automatic": "Automatic",
+      "summer": "Summer",
+      "winter": "Winter",
+      "manual": "Manual"
+    },
+    "select.zendure_smartflow_ai.manual_action": {
+      "standby": "Standby",
+      "charge": "Charge",
+      "discharge": "Discharge"
     }
   }
 }
