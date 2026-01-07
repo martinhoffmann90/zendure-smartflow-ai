@@ -229,6 +229,9 @@ In dieser Situation:
 ## Installation
 
 ### Über HACS
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=PalmManiac&repository=zendure-smartflow-ai&category=integration)
+
 1. HACS muß in Home Assistant installiert sein 
 2. HACS aufrufen und rechts oben auf die 3 Punkte klicken,   
 3. Den Menüpunkt `Benutzerdefinierte Repositories` anklicken 
