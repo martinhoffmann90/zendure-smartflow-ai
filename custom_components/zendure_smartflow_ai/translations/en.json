@@ -2,10 +2,21 @@
   "entity": {
     "select": {
       "ai_mode": {
-        "name": "Operating mode"
+        "name": "Operating mode",
+        "state": {
+          "automatic": "Automatic",
+          "summer": "Summer",
+          "winter": "Winter",
+          "manual": "Manual"
+        }
       },
       "manual_action": {
-        "name": "Manual action"
+        "name": "Manual action",
+        "state": {
+          "standby": "Standby",
+          "charge": "Charge",
+          "discharge": "Discharge"
+        }
       }
     },
 
@@ -98,20 +109,6 @@
       "price_now": { "name": "Current electricity price" },
       "avg_charge_price": { "name": "Average battery charge price" },
       "profit_eur": { "name": "Profit / savings (total)" }
-    }
-  },
-
-  "state": {
-    "select.zendure_smartflow_ai.ai_mode": {
-      "automatic": "Automatic",
-      "summer": "Summer",
-      "winter": "Winter",
-      "manual": "Manual"
-    },
-    "select.zendure_smartflow_ai.manual_action": {
-      "standby": "Standby",
-      "charge": "Charge",
-      "discharge": "Discharge"
     }
   }
 }
