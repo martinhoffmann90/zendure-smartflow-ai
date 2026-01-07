@@ -10,11 +10,11 @@
         "data": {
           "soc_entity": "Akkustand (SoC) in %",
           "pv_entity": "PV-Leistung (W)",
-          "price_export_entity": "Strompreis-Export (optional, z. B. Tibber Datenexport)",
+          "price_export_entity": "Strompreis-Export (optional)",
           "price_now_entity": "Aktueller Strompreis (optional, €/kWh)",
-          "ac_mode_entity": "Zendure AC Mode (Select: input / output)",
-          "input_limit_entity": "Zendure Input-Limit (Number, W)",
-          "output_limit_entity": "Zendure Output-Limit (Number, W)",
+          "ac_mode_entity": "Zendure AC Mode (Select)",
+          "input_limit_entity": "Zendure Input-Limit (W)",
+          "output_limit_entity": "Zendure Output-Limit (W)",
           "grid_mode": "Netzsensor-Setup",
           "grid_power_entity": "Netzleistung (+Bezug / −Einspeisung)",
           "grid_import_entity": "Netzbezug (W)",
@@ -27,21 +27,10 @@
   "entity": {
     "select": {
       "ai_mode": {
-        "name": "Betriebsmodus",
-        "options": {
-          "automatic": "Automatik",
-          "summer": "Sommer",
-          "winter": "Winter",
-          "manual": "Manuell"
-        }
+        "name": "Betriebsmodus"
       },
       "manual_action": {
-        "name": "Manuelle Aktion",
-        "options": {
-          "standby": "Standby",
-          "charge": "Laden",
-          "discharge": "Entladen"
-        }
+        "name": "Manuelle Aktion"
       }
     },
 
@@ -60,12 +49,11 @@
       "status": { "name": "Systemstatus" },
       "ai_status": { "name": "KI-Status" },
       "recommendation": { "name": "Empfehlung" },
-      "ai_debug": { "name": "KI-Debug" },
+      "decision_reason": { "name": "Entscheidungsgrund" },
       "house_load": { "name": "Hauslast" },
       "price_now": { "name": "Aktueller Strompreis" },
       "avg_charge_price": { "name": "Ø Ladepreis Akku" },
       "profit_eur": { "name": "Ersparnis / Gewinn" },
-      "decision_reason": { "name": "Entscheidungsgrund" },
       "planning_status": { "name": "Preis-Vorplanung Status" },
       "planning_active": { "name": "Preis-Vorplanung aktiv" },
       "planning_target_soc": { "name": "Ziel-SoC (Planung)" },
