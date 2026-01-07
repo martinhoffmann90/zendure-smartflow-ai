@@ -13,21 +13,10 @@
   "entity": {
     "select": {
       "ai_mode": {
-        "name": "Betriebsmodus",
-        "state": {
-          "automatic": "Automatik",
-          "summer": "Sommer",
-          "winter": "Winter",
-          "manual": "Manuell"
-        }
+        "name": "Betriebsmodus"
       },
       "manual_action": {
-        "name": "Manuelle Aktion",
-        "state": {
-          "standby": "Standby",
-          "charge": "Laden",
-          "discharge": "Entladen"
-        }
+        "name": "Manuelle Aktion"
       }
     },
 
@@ -52,6 +41,7 @@
           "price_invalid": "Preisdaten ungültig"
         }
       },
+
       "ai_status": {
         "name": "KI-Status",
         "state": {
@@ -64,13 +54,14 @@
           "manual": "Manueller Modus"
         }
       },
+
       "recommendation": {
         "name": "KI-Empfehlung",
         "state": {
           "standby": "Keine Aktion",
           "charge": "Laden",
           "discharge": "Entladen",
-          "emergency": "Notladen"
+          "emergency_charge": "Notladung"
         }
       },
 
@@ -108,6 +99,7 @@
           "planning_peak_detected_insufficient_window": "Preisspitze erkannt, aber Zeitfenster zu kurz"
         }
       },
+
       "planning_active": { "name": "Preisvorplanung aktiv" },
       "planning_target_soc": { "name": "Ziel-SoC Preis-Vorplanung" },
       "planning_reason": { "name": "Planungsbegründung" },
@@ -117,6 +109,20 @@
       "price_now": { "name": "Aktueller Strompreis" },
       "avg_charge_price": { "name": "Ø Ladepreis Akku" },
       "profit_eur": { "name": "Gewinn / Ersparnis (gesamt)" }
+    }
+  },
+
+  "state": {
+    "select.zendure_smartflow_ai.ai_mode": {
+      "automatic": "Automatik",
+      "summer": "Sommer",
+      "winter": "Winter",
+      "manual": "Manuell"
+    },
+    "select.zendure_smartflow_ai.manual_action": {
+      "standby": "Standby",
+      "charge": "Laden",
+      "discharge": "Entladen"
     }
   }
 }
