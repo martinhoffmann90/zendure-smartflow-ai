@@ -722,7 +722,30 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await self._set_ac_mode(ac_mode)
             await self._set_input_limit(in_w)
             await self._set_output_limit(out_w)
-            
+
+            # --------------------------------------------------
+            # FINAL AI STATUS (derived from actual action)
+            # --------------------------------------------------
+            if ac_mode == ZENDURE_MODE_INPUT and in_w > 0:
+                if decision_reason == "pv_surplus_charge":
+                    ai_status = AI_STATUS_CHARGE_SURPLUS
+                else:
+                    ai_status = AI_STATUS_STANDBY
+
+            elif ac_mode == ZENDURE_MODE_OUTPUT and out_w > 0:
+                if decision_reason.startswith("very_expensive"):
+                    ai_status = AI_STATUS_VERY_EXPENSIVE_FORCE
+                elif decision_reason == "expensive_discharge":
+                    ai_status = AI_STATUS_EXPENSIVE_DISCHARGE
+                else:
+                    ai_status = AI_STATUS_COVER_DEFICIT
+
+            else:
+                ai_status = AI_STATUS_STANDBY
+
+            if in_w <= 0 and out_w <= 0:
+                recommendation = RECO_STANDBY
+
             # --- house load calculation (total house consumption) ---
             house_load = 0.0
 
