@@ -549,6 +549,10 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             deficit, surplus = self._get_grid()
             price_now = self._get_price_now()
             
+            # keep raw grid values for house_load calculation (before any logic modifies them)
+            deficit_raw = deficit
+            surplus_raw = surplus
+
             # --------------------------------------------------
             # EMA smoothing to avoid sawtooth discharge
             # --------------------------------------------------
@@ -901,21 +905,17 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 ai_status = AI_STATUS_STANDBY
 
             # --- house load calculation (total house consumption) ---
-            house_load = 0.0
+            # Use RAW grid values (before any anti-oscillation logic),
+            # and add battery discharge estimate (out_w) because it does NOT appear in grid import.
+            grid_import = float(deficit_raw) if deficit_raw is not None and deficit_raw > 0 else 0.0
+            grid_export = float(surplus_raw) if surplus_raw is not None and surplus_raw > 0 else 0.0
+            pv_w = float(pv) if pv is not None else 0.0
 
-            # PV contribution
-            if pv is not None:
-                house_load = float(pv)
+            battery_to_house = float(out_w) if ac_mode == ZENDURE_MODE_OUTPUT and out_w > 0 else 0.0
 
-            # subtract feed-in (surplus)
-            if surplus is not None and surplus > 0:
-                house_load -= float(surplus)
-
-            # add grid import
-            if deficit is not None and deficit > 0:
-                house_load += float(deficit)
-
+            house_load = pv_w + grid_import + battery_to_house - grid_export
             house_load = max(house_load, 0.0)
+
             house_load = _ema("ema_house_load", house_load) or house_load
 
             # Analytics
