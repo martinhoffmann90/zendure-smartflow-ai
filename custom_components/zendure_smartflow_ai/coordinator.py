@@ -143,6 +143,10 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._persist: dict[str, Any] = {
             "runtime_mode": dict(self.runtime_mode),
 
+		    # --- anti-oscillation / hysteresis ---
+            "pv_surplus_cnt": 0,
+            "pv_clear_cnt": 0,
+
             # emergency latch
             "emergency_active": False,
 
@@ -538,22 +542,40 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             deficit, surplus = self._get_grid()
             price_now = self._get_price_now()
+
+		    # --------------------------------------------------
+            # PV surplus hysteresis (stop discharge safely)
+            # --------------------------------------------------
+            PV_STOP_W = 80.0     # W: surplus above this = real PV surplus
+            PV_CLEAR_W = 30.0    # W: below this = no surplus anymore
+            PV_STOP_N = 3        # consecutive cycles to stop discharge
+            PV_CLEAR_N = 6       # cycles to allow discharge again
+
+            if surplus is not None and surplus > PV_STOP_W:
+                self._persist["pv_surplus_cnt"] += 1
+                self._persist["pv_clear_cnt"] = 0
+            else:
+                self._persist["pv_surplus_cnt"] = 0
+                if surplus is not None and surplus < PV_CLEAR_W:
+                    self._persist["pv_clear_cnt"] += 1
+                else:
+                    self._persist["pv_clear_cnt"] = 0
+
+            pv_stop_discharge = self._persist["pv_surplus_cnt"] >= PV_STOP_N
+            pv_allow_discharge = self._persist["pv_clear_cnt"] >= PV_CLEAR_N
             
 			# --------------------------------------------------
-			# FIX 3: Ignore battery feed-in as PV surplus
-			# If price logic wants discharge, any feed-in is NOT PV
-			# --------------------------------------------------
-            if surplus is not None and surplus > 0:
-                if (
-                    price_now is not None
-                    and (
-                        price_now >= expensive
-                        or price_now >= very_expensive
-                    )
-                    and soc > soc_min
-                ):
-                    surplus = None
-            
+            # Ignore battery feed-in as PV surplus during discharge logic
+            # --------------------------------------------------
+            if (
+                surplus is not None
+                and surplus > 0
+                and price_now is not None
+                and price_now >= expensive
+                and soc > soc_min
+            ):
+                surplus = None
+				
             # Emergency latch
             if soc <= emergency_soc:
                 self._persist["emergency_active"] = True
@@ -716,14 +738,21 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
                         # winter: cover deficit if possible
                         elif is_winter and deficit is not None and deficit > 0 and soc > soc_min:
-                            ai_status = AI_STATUS_COVER_DEFICIT
-                            recommendation = RECO_DISCHARGE
-                            ac_mode = ZENDURE_MODE_OUTPUT
-                            in_w = 0.0
-                            # prefer slight feed-in over grid import
-                            target = deficit if deficit is not None else max_discharge
-                            out_w = min(max_discharge, max(target + 50.0, 0.0))
-                            decision_reason = "cover_deficit"
+                            if pv_stop_discharge:
+                                ai_status = AI_STATUS_CHARGE_SURPLUS
+                                recommendation = RECO_CHARGE
+                                ac_mode = ZENDURE_MODE_INPUT
+                                in_w = min(max_charge, float(surplus or 0.0))
+                                out_w = 0.0
+                                decision_reason = "pv_surplus_interrupt_discharge"
+                            else:
+                                ai_status = AI_STATUS_COVER_DEFICIT
+                                recommendation = RECO_DISCHARGE
+                                ac_mode = ZENDURE_MODE_OUTPUT
+                                in_w = 0.0
+                                target = deficit if deficit is not None else max_discharge
+                                out_w = min(max_discharge, max(target + 50.0, 0.0))
+                                decision_reason = "cover_deficit"
 
                         elif (
                             price_now is not None
@@ -731,6 +760,21 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             and price_now < very_expensive
                             and soc > soc_min
                         ):
+                            if pv_stop_discharge:
+                                ai_status = AI_STATUS_CHARGE_SURPLUS
+                                recommendation = RECO_CHARGE
+                                ac_mode = ZENDURE_MODE_INPUT
+                                in_w = min(max_charge, float(surplus or 0.0))
+                                out_w = 0.0
+                                decision_reason = "pv_surplus_interrupt_discharge"
+                            else:
+                                ai_status = AI_STATUS_EXPENSIVE_DISCHARGE
+                                recommendation = RECO_DISCHARGE
+                                ac_mode = ZENDURE_MODE_OUTPUT
+                                in_w = 0.0
+                                target = deficit if deficit is not None else max_discharge
+                                out_w = min(max_discharge, max(target + 50.0, 0.0))
+                                decision_reason = "expensive_discharge"
 
                             ai_status = AI_STATUS_EXPENSIVE_DISCHARGE
                             recommendation = RECO_DISCHARGE
