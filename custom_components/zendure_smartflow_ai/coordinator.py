@@ -509,6 +509,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._persist["last_ts"] = dt_util.utcnow().isoformat()
 
             now = dt_util.utcnow()
+            prev = None
 
             soc = _to_float(self._state(self.entities.soc), None)
             pv = _to_float(self._state(self.entities.pv), None)
