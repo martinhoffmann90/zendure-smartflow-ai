@@ -484,6 +484,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # sanitize grid values so we never compare None with floats
             deficit_raw = float(deficit_raw) if deficit_raw is not None else 0.0
             surplus_raw = float(surplus_raw) if surplus_raw is not None else 0.0
+            # geglätteter Überschuss (wichtig für Hauslast & Regelung)
+            surplus = _ema("ema_surplus", surplus_raw)
 
             # --------------------------------------------------
             # HOUSE LOAD (EARLY, STABLE, SINGLE SOURCE OF TRUTH)
