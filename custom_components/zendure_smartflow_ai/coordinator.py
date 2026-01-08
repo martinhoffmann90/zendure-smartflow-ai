@@ -589,6 +589,22 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         in_w = min(max_charge, max_charge)
                         out_w = 0.0
                         decision_reason = "manual_charge"
+                        
+                        # >>> MANUAL CHARGE IS ABSOLUTE <<<
+                        await self._set_ac_mode(ac_mode)
+                        await self._set_input_limit(in_w)
+                        await self._set_output_limit(out_w)
+
+                        await self._save()
+
+                        return {
+                            "status": status,
+                            "ai_status": AI_STATUS_MANUAL,
+                            "recommendation": recommendation,
+                            "debug": "OK",
+                            "details": {},
+                            "decision_reason": decision_reason,
+                        }    
 
                     elif manual_action == MANUAL_DISCHARGE:
                         recommendation = RECO_DISCHARGE
@@ -625,18 +641,13 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
                         # In main logic, before applying planning charge
                         if planning.get("action") == "charge":
-                            # PV surplus always wins, but MUST NOT block grid charging
-                            if surplus is not None and surplus > 50:
-                                # handled by PV logic later
-                                planning_applied = False
-                            else:
-                                planning_applied = True
-                                ai_status = AI_STATUS_STANDBY
-                                recommendation = RECO_CHARGE
-                                ac_mode = ZENDURE_MODE_INPUT
-                                in_w = min(max_charge, float(planning.get("watts") or max_charge))
-                                out_w = 0.0
-                                decision_reason = str(planning.get("reason"))
+                            planning_applied = True
+                            ai_status = AI_STATUS_STANDBY
+                            recommendation = RECO_CHARGE
+                            ac_mode = ZENDURE_MODE_INPUT
+                            in_w = min(max_charge, float(planning.get("watts") or max_charge))
+                            out_w = 0.0
+                            decision_reason = str(planning.get("reason"))
                             
                     if not planning_applied:
                         decision_reason = "automatic_idle"
@@ -661,7 +672,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             recommendation = RECO_DISCHARGE
                             ac_mode = ZENDURE_MODE_OUTPUT
                             in_w = 0.0
-                            out_w = max_discharge
+                            # prefer slight feed-in over grid import
+                             target = deficit if deficit is not None else max_discharge
+                             out_w = min(max_discharge, max(target + 50.0, 0.0))
                             decision_reason = "summer_cover_deficit"
 
                         # PV surplus charge
@@ -679,7 +692,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             recommendation = RECO_DISCHARGE
                             ac_mode = ZENDURE_MODE_OUTPUT
                             in_w = 0.0
-                            out_w = max_discharge
+                            # prefer slight feed-in over grid import
+                             target = deficit if deficit is not None else max_discharge
+                             out_w = min(max_discharge, max(target + 50.0, 0.0))
                             decision_reason = "cover_deficit"
 
                         elif (
@@ -695,7 +710,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             recommendation = RECO_DISCHARGE
                             ac_mode = ZENDURE_MODE_OUTPUT
                             in_w = 0.0
-                            out_w = max_discharge
+                            # prefer slight feed-in over grid import
+                             target = deficit if deficit is not None else max_discharge
+                             out_w = min(max_discharge, max(target + 50.0, 0.0))
                             decision_reason = "expensive_discharge"
 
                         if recommendation == RECO_STANDBY:
@@ -741,9 +758,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             else:
                 ai_status = AI_STATUS_STANDBY
-
-            if in_w <= 0 and out_w <= 0:
-                recommendation = RECO_STANDBY
 
             # --- house load calculation (total house consumption) ---
             house_load = 0.0
