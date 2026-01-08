@@ -607,13 +607,18 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     recommendation = RECO_DISCHARGE
 
                     prev_target = float(self._persist.get("discharge_target_w") or 0.0)
-                    raw_target = float(deficit_raw) if deficit_raw > 0.0 else prev_target
+                    # Ziel ist die HAUSLAST, nicht der Grid-Import
+                    house_target = house_load
 
-                    MAX_STEP_UP = 200.0
+                    # Sicherheit: nicht über max_discharge
+                    raw_target = min(house_target, max_discharge)
+
+                    MAX_STEP_UP = 120.0     # langsamer hoch
+                    MAX_STEP_DOWN = 40.0   # sanft runter
                     if raw_target > prev_target:
                         target = min(prev_target + MAX_STEP_UP, raw_target)
                     else:
-                        target = prev_target  # hold (prevents saw-tooth)
+                        target = max(prev_target - MAX_STEP_DOWN, raw_target)
 
                     self._persist["discharge_target_w"] = float(target)
                     out_w = min(float(max_discharge), max(float(target), 0.0))
