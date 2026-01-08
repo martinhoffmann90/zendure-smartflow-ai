@@ -555,7 +555,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             deficit_raw = deficit
             surplus_raw = surplus
 
-            power_state = self._persist.get("power_state", "idle")
+            power_state = self._persist.get("power_state") or "idle"
             goto_apply = False
 
             # --------------------------------------------------
