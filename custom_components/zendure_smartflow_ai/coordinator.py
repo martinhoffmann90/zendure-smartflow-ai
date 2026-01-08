@@ -618,6 +618,13 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     is_summer = ai_mode == AI_MODE_SUMMER
                     is_winter = ai_mode == AI_MODE_WINTER
 
+                    # --------------------------------------------------
+                    # FIX 2: Block PV logic during active discharge
+                    # Prevent charge/discharge oscillation
+                    # --------------------------------------------------
+                    if recommendation == RECO_DISCHARGE or ac_mode == ZENDURE_MODE_OUTPUT:
+                        surplus = None
+
                     # planning (automatic only)
                     planning_applied = False
                     if ai_mode == AI_MODE_AUTOMATIC:
@@ -677,8 +684,14 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             out_w = min(max_discharge, max(target + 50.0, 0.0))
                             decision_reason = "summer_cover_deficit"
 
-                        # PV surplus charge
-                        elif surplus is not None and surplus > 50 and soc < soc_max:
+                        # PV surplus charge (ONLY if not discharging)
+                        elif (
+                            surplus is not None
+                            and surplus > 50
+                            and soc < soc_max
+                            and ac_mode != ZENDURE_MODE_OUTPUT
+                            and recommendation != RECO_DISCHARGE
+                        ):
                             ai_status = AI_STATUS_CHARGE_SURPLUS
                             recommendation = RECO_CHARGE
                             ac_mode = ZENDURE_MODE_INPUT
