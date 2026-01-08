@@ -973,9 +973,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             grid_export = float(surplus_raw) if surplus_raw is not None and surplus_raw > 0 else 0.0
             pv_w = float(pv) if pv is not None else 0.0
 
-            battery_to_house = float(out_w) if ac_mode == ZENDURE_MODE_OUTPUT and out_w > 0 else 0.0
-
-            house_load = pv_w + grid_import + battery_to_house - grid_export
+            house_load = pv_w + grid_import - grid_export
             house_load = max(house_load, 0.0)
 
             house_load = _ema("ema_house_load", house_load) or house_load
