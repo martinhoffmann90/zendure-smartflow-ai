@@ -172,6 +172,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "avg_charge_price": None,
             "charged_kwh": 0.0,
             "discharged_kwh": 0.0,
+            "discharge_target_w": 0.0,
             "profit_eur": 0.0,
             "last_ts": None,
 
@@ -582,7 +583,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._persist[key] = float(v)
                 return float(v)
 
-            deficit = _ema("ema_deficit", deficit)
+            # deficit = _ema("ema_deficit", deficit)
             surplus = _ema("ema_surplus", surplus)
 
             self._persist["ema_last_ts"] = now_ts
@@ -715,8 +716,21 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         recommendation = RECO_DISCHARGE
                         ac_mode = ZENDURE_MODE_OUTPUT
                         in_w = 0.0
-                        target = deficit if deficit is not None else max_discharge
-                        out_w = min(max_discharge, max(float(target or 0.0), 0.0))
+                        raw_target = deficit if deficit is not None else 0.0
+
+                        prev = float(self._persist.get("discharge_target_w") or 0.0)
+
+                        MAX_STEP = 250.0  # W pro Update (sehr gut für 10s)
+
+                        if raw_target > prev:
+                            target = min(prev + MAX_STEP, raw_target)
+                        else:
+                            target = max(prev - MAX_STEP, raw_target)
+
+                        self._persist["discharge_target_w"] = target
+
+                        out_w = min(max_discharge, max(target, 0.0))
+                        
                         decision_reason = "manual_discharge"
 
                 else:
@@ -792,8 +806,20 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                                 recommendation = RECO_DISCHARGE
                                 ac_mode = ZENDURE_MODE_OUTPUT
                                 in_w = 0.0
-                                target = deficit if deficit is not None else max_discharge
-                                out_w = min(max_discharge, max(target + 50.0, 0.0))
+                                raw_target = deficit if deficit is not None else 0.0
+
+                                 prev = float(self._persist.get("discharge_target_w") or 0.0)
+
+                                 MAX_STEP = 250.0  # W pro Update (sehr gut für 10s)
+
+                                 if raw_target > prev:
+                                     target = min(prev + MAX_STEP, raw_target)
+                                 else:
+                                     target = max(prev - MAX_STEP, raw_target)
+
+                                 self._persist["discharge_target_w"] = target
+
+                                 out_w = min(max_discharge, max(target, 0.0))
                                 decision_reason = "summer_cover_deficit"
 
                         # PV surplus charge (ONLY if not discharging)
@@ -825,8 +851,20 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                                 recommendation = RECO_DISCHARGE
                                 ac_mode = ZENDURE_MODE_OUTPUT
                                 in_w = 0.0
-                                target = deficit if deficit is not None else max_discharge
-                                out_w = min(max_discharge, max(target + 50.0, 0.0))
+                                raw_target = deficit if deficit is not None else 0.0
+
+                                prev = float(self._persist.get("discharge_target_w") or 0.0)
+
+                                MAX_STEP = 250.0  # W pro Update (sehr gut für 10s)
+
+                                if raw_target > prev:
+                                    target = min(prev + MAX_STEP, raw_target)
+                                else:
+                                    target = max(prev - MAX_STEP, raw_target)
+
+                                self._persist["discharge_target_w"] = target
+
+                                out_w = min(max_discharge, max(target, 0.0))
                                 decision_reason = "cover_deficit"
 
                         elif (
@@ -847,8 +885,20 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                                 recommendation = RECO_DISCHARGE
                                 ac_mode = ZENDURE_MODE_OUTPUT
                                 in_w = 0.0
-                                target = deficit if deficit is not None else max_discharge
-                                out_w = min(max_discharge, max(target + 50.0, 0.0))
+                                raw_target = deficit if deficit is not None else 0.0
+
+                                prev = float(self._persist.get("discharge_target_w") or 0.0)
+
+                                MAX_STEP = 250.0  # W pro Update (sehr gut für 10s)
+
+                                if raw_target > prev:
+                                    target = min(prev + MAX_STEP, raw_target)
+                                else:
+                                    target = max(prev - MAX_STEP, raw_target)
+
+                                self._persist["discharge_target_w"] = target
+
+                                out_w = min(max_discharge, max(target, 0.0))
                                 decision_reason = "expensive_discharge"
 
                             ai_status = AI_STATUS_EXPENSIVE_DISCHARGE
@@ -856,8 +906,20 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             ac_mode = ZENDURE_MODE_OUTPUT
                             in_w = 0.0
                             # prefer slight feed-in over grid import
-                            target = deficit if deficit is not None else max_discharge
-                            out_w = min(max_discharge, max(target + 50.0, 0.0))
+                            raw_target = deficit if deficit is not None else 0.0
+
+                             prev = float(self._persist.get("discharge_target_w") or 0.0)
+
+                             MAX_STEP = 250.0  # W pro Update (sehr gut für 10s)
+
+                             if raw_target > prev:
+                                 target = min(prev + MAX_STEP, raw_target)
+                             else:
+                                 target = max(prev - MAX_STEP, raw_target)
+
+                             self._persist["discharge_target_w"] = target
+
+                             out_w = min(max_discharge, max(target, 0.0))
                             decision_reason = "expensive_discharge"
 
                         if recommendation == RECO_STANDBY:
