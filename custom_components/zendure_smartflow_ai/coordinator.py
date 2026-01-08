@@ -653,7 +653,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     ai_status = AI_STATUS_COVER_DEFICIT
                     in_w = 0.0
 
-                    raw_target = deficit_raw + 50 if deficit_raw and deficit_raw > 0 else prev
+                    raw_target = deficit_raw if deficit_raw and deficit_raw > 0 else prev
                     prev = float(self._persist.get("discharge_target_w") or 0.0)
 
                     MAX_STEP_UP = 200.0   # darf schneller hoch
