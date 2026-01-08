@@ -496,7 +496,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             action="none",
             watts=0.0,
             status="planning_waiting_for_cheap_window",
-            reason=f"waiting_for_target_window(price={float(price_now):.4f}>target={float(target_price):.4f})",
+            reason=f"waiting_for_target_window(price={ float(price_now):.4f}>target={float(target_price):.4f})",
             next_peak=next_peak,
         )
         return result
@@ -551,12 +551,10 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             deficit, surplus = self._get_grid()
             price_now = self._get_price_now()
-            
-            # keep raw grid values for house_load calculation (before any logic modifies them)
-            if deficit is not None:
-                deficit = float(deficit)
-            if surplus is not None:
-                surplus = float(surplus)
+
+            # --- HARD SANITIZE GRID VALUES (NO None BEYOND THIS POINT) ---
+            deficit = float(deficit) if deficit is not None else 0.0
+            surplus = float(surplus) if surplus is not None else 0.0
 
             deficit_raw = deficit
             surplus_raw = surplus
@@ -659,8 +657,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     ai_status = AI_STATUS_COVER_DEFICIT
                     in_w = 0.0
 
-                    raw_target = deficit_raw if deficit_raw is not None and deficit_raw > 0 else prev
                     prev = float(self._persist.get("discharge_target_w") or 0.0)
+                    raw_target = deficit_raw if deficit_raw > 0 else prev
 
                     MAX_STEP_UP = 200.0   # darf schneller hoch
                     MAX_STEP_DOWN = 0.0   # NICHT runterregeln im State!
@@ -680,7 +678,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # ---------- CHARGING ----------
             elif power_state == "charging":
 
-                if soc >= soc_max or not surplus:
+                if soc >= soc_max or surplus <= 0:
                     self._persist["power_state"] = "idle"
                     decision_reason = "state_charge_done"
 
