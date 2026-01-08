@@ -750,15 +750,20 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 out_w = 0.0
                 decision_reason = "emergency_latched_charge"
 
-        else:
-            if state_machine_active:
-                # STATE MACHINE IST AKTIV → KEINE NEUE ENTSCHEIDUNG
-                pass
             else:
-                # Manual mode
-                if ai_mode == AI_MODE_MANUAL:
-                    ai_status = AI_STATUS_MANUAL
-                    decision_reason = "manual_mode"
+                # --------------------------------------------------
+                # NOT emergency → continue normal logic
+                # --------------------------------------------------
+
+                if state_machine_active:
+                    # STATE MACHINE IST AKTIV → KEINE NEUE ENTSCHEIDUNG
+                    pass
+
+                else:
+                    # Manual mode
+                    if ai_mode == AI_MODE_MANUAL:
+                        ai_status = AI_STATUS_MANUAL
+                        decision_reason = "manual_mode"
 
                     if manual_action == MANUAL_STANDBY:
                         recommendation = RECO_STANDBY
