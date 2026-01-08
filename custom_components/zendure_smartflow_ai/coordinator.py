@@ -626,6 +626,30 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         in_w = min(max_charge, max_charge)
                         out_w = 0.0
                         decision_reason = "manual_charge"
+
+                        # --------------------------------------------------
+                        # Output smoothing (anti saw-tooth)
+                        # --------------------------------------------------
+                        DISCHARGE_DEADBAND = 100.0   # W
+                        MIN_UPDATE_SECONDS = 20.0    # s
+
+                        last_out = self._persist.get("last_set_output_w")
+                        last_ts = self._persist.get("last_output_ts")
+                        now_ts = now.timestamp()
+
+                        if ac_mode == ZENDURE_MODE_OUTPUT and out_w > 0:
+                            if last_out is not None and last_ts is not None:
+                                # too small change → keep old value
+                                if abs(out_w - last_out) < DISCHARGE_DEADBAND:
+                                    out_w = float(last_out)
+
+                                # too fast update → keep old value
+                                elif (now_ts - float(last_ts)) < MIN_UPDATE_SECONDS:
+                                    out_w = float(last_out)
+                                else:
+                                    self._persist["last_output_ts"] = now_ts
+                            else:
+                                self._persist["last_output_ts"] = now_ts
                         
                         # >>> MANUAL CHARGE IS ABSOLUTE <<<
                         await self._set_ac_mode(ac_mode)
