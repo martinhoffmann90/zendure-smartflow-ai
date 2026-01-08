@@ -425,6 +425,29 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             soc = _to_float(self._state(self.entities.soc), None)
             pv = _to_float(self._state(self.entities.pv), None)
 
+            # --------------------------------------------------
+            # EMA helper (MUSS vor Nutzung definiert sein)
+            # --------------------------------------------------
+            EMA_TAU_S = 45.0
+            now_ts = now.timestamp()
+
+            last_ts = self._persist.get("ema_last_ts")
+            if last_ts is None:
+                dt = None
+            else:
+                dt = max(now_ts - float(last_ts), 0.0)
+
+            alpha = 1.0 if dt is None or dt <= 0 else min(dt / (EMA_TAU_S + dt), 1.0)
+
+            def _ema(key: str, value: float) -> float:
+                prev = self._persist.get(key)
+                if prev is None:
+                    self._persist[key] = float(value)
+                    return float(value)
+                v = (1.0 - alpha) * float(prev) + alpha * float(value)
+                self._persist[key] = float(v)
+                return float(v)
+
             if soc is None or pv is None:
                 return {
                     "status": STATUS_SENSOR_INVALID,
@@ -477,32 +500,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # Glätten → verhindert Sägezahn
             house_load = _ema("ema_house_load", house_load_raw) or house_load_raw
-
-            # --------------------------------------------------
-            # EMA smoothing (surplus only)
-            # --------------------------------------------------
-            EMA_TAU_S = 45.0
-            now_ts = now.timestamp()
-
-            last_ts = self._persist.get("ema_last_ts")
-            if last_ts is None:
-                dt = None
-            else:
-                dt = max(now_ts - float(last_ts), 0.0)
-
-            alpha = 1.0 if dt is None or dt <= 0 else min(dt / (EMA_TAU_S + dt), 1.0)
-
-            def _ema(key: str, value: float) -> float:
-                prev = self._persist.get(key)
-                if prev is None:
-                    self._persist[key] = float(value)
-                    return float(value)
-                v = (1.0 - alpha) * float(prev) + alpha * float(value)
-                self._persist[key] = float(v)
-                return float(v)
-
-            surplus = _ema("ema_surplus", surplus_raw)
-            self._persist["ema_last_ts"] = now_ts
 
             # --------------------------------------------------
             # PV surplus hysteresis (stop discharge safely)
