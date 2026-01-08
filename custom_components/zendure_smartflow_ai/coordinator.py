@@ -1085,18 +1085,15 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # Analytics
             last_ts = self._persist.get("last_ts")
+
+            dt_s = 0.0
             if last_ts:
                 try:
-                    prev = dt_util.parse_datetime(str(last_ts))
+                    prev_dt = dt_util.parse_datetime(str(last_ts))
+                    if prev_dt:
+                        dt_s = max((now - prev_dt).total_seconds(), 0.0)
                 except Exception:
-                    prev = None
-            else:
-                prev = None
-
-            if prev is None:
-                dt_s = 0.0
-            else:
-                dt_s = max((now - prev).total_seconds(), 0.0)
+                    dt_s = 0.0
 
             in_w = float(in_w)
             out_w = float(out_w)
