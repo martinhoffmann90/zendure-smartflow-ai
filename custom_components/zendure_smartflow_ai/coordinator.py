@@ -611,8 +611,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
                 # HARD STOP: no real discharge demand anymore
                 if power_state == "discharging":
-                no_deficit = deficit_raw <= 30.0
-                no_house_load = house_load <= 50.0
+                    no_deficit = deficit_raw <= 30.0
+                    no_house_load = house_load <= 50.0
 
                 if no_deficit or no_house_load:
                     power_state = "idle"
