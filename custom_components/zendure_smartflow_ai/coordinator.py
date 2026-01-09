@@ -708,15 +708,26 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await self._set_output_limit(out_w)
 
             # --------------------------------------------------
-            # FINAL AI STATUS (derived from action)
+            # FINAL EFFECTIVE STATE (authoritative for sensors)
+            # --------------------------------------------------
+            is_charging = ac_mode == ZENDURE_MODE_INPUT and float(in_w) > 0.0
+            is_discharging = ac_mode == ZENDURE_MODE_OUTPUT and float(out_w) > 0.0
+
+            # If no real power flow is active, force sensor outputs to Standby/Idle
+            if not is_charging and not is_discharging:
+                recommendation = RECO_STANDBY
+                decision_reason = "state_idle"
+
+            # --------------------------------------------------
+            # FINAL AI STATUS (derived from EFFECTIVE action)
             # --------------------------------------------------
             if ai_mode == AI_MODE_MANUAL:
                 ai_status = AI_STATUS_MANUAL
             elif self._persist.get("emergency_active"):
                 ai_status = AI_STATUS_EMERGENCY_CHARGE
-            elif ac_mode == ZENDURE_MODE_INPUT and in_w > 0:
+            elif is_charging:
                 ai_status = AI_STATUS_CHARGE_SURPLUS
-            elif ac_mode == ZENDURE_MODE_OUTPUT and out_w > 0:
+            elif is_discharging:
                 if decision_reason.startswith("very_expensive"):
                     ai_status = AI_STATUS_VERY_EXPENSIVE_FORCE
                 elif decision_reason == "expensive_discharge":
