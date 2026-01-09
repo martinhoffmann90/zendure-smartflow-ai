@@ -503,6 +503,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # Glätten → verhindert Sägezahn
             house_load = _ema("ema_house_load", house_load_raw) or house_load_raw
+            no_house_load = house_load < 120.0
 
             # --------------------------------------------------
             # PV surplus hysteresis (stop discharge safely)
