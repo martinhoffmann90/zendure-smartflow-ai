@@ -609,6 +609,16 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     power_state = "idle"
                     self._persist["power_state"] = "idle"
 
+                # HARD STOP: no real discharge demand anymore
+                if power_state == "discharging":
+                no_deficit = deficit_raw <= 30.0
+                no_house_load = house_load <= 50.0
+
+                if no_deficit or no_house_load:
+                    power_state = "idle"
+                    self._persist["power_state"] = "idle"
+                    self._persist["discharge_target_w"] = 0.0
+
                 if power_state == "discharging" and soc <= soc_min:
                     power_state = "idle"
                     self._persist["power_state"] = "idle"
@@ -662,6 +672,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     recommendation = RECO_STANDBY
                     in_w = 0.0
                     out_w = 0.0
+                    self._persist["discharge_target_w"] = 0.0
 
                 # expensive / very expensive overlays (only while idle or discharging; never fight PV stop)
                 if price_now is not None and soc > soc_min and power_state != "charging":
