@@ -5,7 +5,7 @@
     "step": {
       "user": {
         "title": "Zendure SmartFlow AI einrichten",
-        "description": "Verknüpfe deine Zendure- und Energiesensoren für eine intelligente Steuerung."
+        "description": "Verknüpfe deine Zendure- und Energiesensoren für eine intelligente, stabile Akku-Steuerung."
       }
     }
   },
@@ -27,8 +27,8 @@
       "max_discharge": { "name": "Max. Entladeleistung" },
       "emergency_charge": { "name": "Notladeleistung" },
       "emergency_soc": { "name": "Notladung ab SoC" },
-      "very_expensive_threshold": { "name": "Sehr-Teuer-Schwelle" },
-      "profit_margin_pct": { "name": "Gewinnmarge" }
+      "very_expensive_threshold": { "name": "Sehr-teuer-Schwelle" },
+      "profit_margin_pct": { "name": "Gewinnmarge (%)" }
     },
 
     "sensor": {
@@ -46,10 +46,10 @@
         "name": "KI-Status",
         "state": {
           "standby": "Bereitschaft",
-          "charge_surplus": "Laden mit PV-Überschuss",
-          "cover_deficit": "Netzbezug aus Akku ausgleichen",
-          "expensive_discharge": "Entladen wegen hohem Strompreis",
-          "very_expensive_force": "Maximales Entladen wegen extremer Preisspitze",
+          "charge_surplus": "Laden (PV-Überschuss)",
+          "cover_deficit": "Entladen (Hauslast decken)",
+          "expensive_discharge": "Entladen (hoher Strompreis)",
+          "very_expensive_force": "Zwangsentladung (extreme Preise)",
           "emergency_charge": "Notladung aktiv",
           "manual": "Manueller Modus"
         }
@@ -61,24 +61,33 @@
           "standby": "Keine Aktion",
           "charge": "Laden",
           "discharge": "Entladen",
-          "emergency_charge": "Notladung"
+          "emergency": "Notladung"
         }
       },
 
       "decision_reason": {
         "name": "Entscheidungsgrund",
         "state": {
-          "idle": "Leerlauf (keine Aktion erforderlich)",
-          "emergency_latched_charge": "Notladung aktiv (verriegelt)",
-          "manual_mode": "Manueller Modus aktiv",
-          "manual_charge": "Manuelles Laden",
-          "manual_discharge": "Manuelles Entladen",
-          "summer_cover_deficit": "Sommermodus: Netzbezug ausgleichen",
+          "standby": "Bereitschaft",
+          "state_idle": "Kein Bedarf erkannt",
+
+          "state_enter_discharge": "Entladen gestartet (Bedarf erkannt)",
+          "state_discharging": "Entladen aktiv (Hauslastdeckung)",
+          "state_enter_charge": "Laden gestartet (Überschuss erkannt)",
+          "state_charging": "Laden aktiv",
+
           "pv_surplus_charge": "PV-Überschuss laden",
-          "very_expensive_force_discharge_unlimited": "Extreme Preisspitze – uneingeschränktes Entladen",
+
           "expensive_discharge": "Entladen wegen hohem Strompreis",
-          "planning_charge_now": "Geplantes Laden aktiv",
-          "standby_no_condition_met": "Bereitschaft (keine Bedingung erfüllt)"
+          "very_expensive_force_discharge": "Zwangsentladung wegen extremer Preisspitze",
+
+          "emergency_latched_charge": "Notladung aktiv (verriegelt)",
+          "soc_min_enforced": "Entladung gestoppt (SoC-Minimum erreicht)",
+
+          "manual_mode": "Manueller Modus aktiv",
+          "manual_standby": "Manueller Standby",
+          "manual_charge": "Manuelles Laden",
+          "manual_discharge": "Manuelles Entladen"
         }
       },
 
@@ -86,29 +95,27 @@
         "name": "Preisplanung Status",
         "state": {
           "not_checked": "Noch nicht geprüft",
-          "sensor_invalid": "Sensordaten ungültig",
           "planning_inactive_mode": "Planung deaktiviert (Modus)",
           "planning_blocked_soc_full": "Akku voll – Planung blockiert",
-          "planning_blocked_pv_surplus": "PV-Überschuss – Planung blockiert",
           "planning_no_price_now": "Kein aktueller Strompreis",
           "planning_no_price_data": "Keine Preisdaten verfügbar",
           "planning_no_peak_detected": "Keine relevante Preisspitze erkannt",
           "planning_waiting_for_cheap_window": "Warte auf günstiges Ladefenster",
           "planning_charge_now": "Preisplanung: Laden erlaubt",
           "planning_last_chance": "Letzte Chance vor Preisspitze",
-          "planning_peak_detected_insufficient_window": "Preisspitze erkannt, aber Zeitfenster zu kurz"
+          "planning_peak_detected_insufficient_window": "Preisspitze erkannt, Zeitfenster zu kurz"
         }
       },
 
       "planning_active": { "name": "Preisvorplanung aktiv" },
-      "planning_target_soc": { "name": "Ziel-SoC Preis-Vorplanung" },
+      "planning_target_soc": { "name": "Ziel-SoC (Preisplanung)" },
       "planning_reason": { "name": "Planungsbegründung" },
 
       "ai_debug": { "name": "KI-Debug" },
       "house_load": { "name": "Hauslast" },
       "price_now": { "name": "Aktueller Strompreis" },
       "avg_charge_price": { "name": "Ø Ladepreis Akku" },
-      "profit_eur": { "name": "Gewinn / Ersparnis (gesamt)" }
+      "profit_eur": { "name": "Ersparnis / Gewinn (gesamt)" }
     }
   },
 
