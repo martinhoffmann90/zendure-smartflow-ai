@@ -578,6 +578,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 decision_reason = "manual_mode"
                 self._persist["power_state"] = "idle"
 
+                # >>> FIX: Manual Mode darf nicht von der Automatik-State-Machine übersteuert werden
+                power_state = self._persist["power_state"]
+                
                 if manual_action == MANUAL_STANDBY:
                     ac_mode = ZENDURE_MODE_INPUT
                     in_w = 0.0
@@ -611,7 +614,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     decision_reason = "manual_discharge"
 
             # 3) automatic state machine (SUMMER/WINTER/AUTO all share this stable core)
-            else:
+            elif ai_mode != AI_MODE_MANUAL:
+
                 # if we are discharging, ignore "surplus" decision until hysteresis stops it
                 if power_state == "discharging" and pv_stop_discharge:
                     power_state = "charging"
