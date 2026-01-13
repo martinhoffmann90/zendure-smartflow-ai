@@ -80,4 +80,5 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     @config_entries.callback
     def async_get_options_flow(config_entry):
+        from .options_flow import ZendureSmartFlowOptionsFlow
         return ZendureSmartFlowOptionsFlow(config_entry)
