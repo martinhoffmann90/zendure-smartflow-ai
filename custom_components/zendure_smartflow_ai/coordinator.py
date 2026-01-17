@@ -920,7 +920,14 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "decision_reason": decision_reason,
             }
             
-            details["next_action"] = next_action
+            "next_action": (
+                "manual_charge" if ai_mode == AI_MODE_MANUAL and manual_action == MANUAL_CHARGE else
+                "manual_discharge" if ai_mode == AI_MODE_MANUAL and manual_action == MANUAL_DISCHARGE else
+                "emergency_charge" if self._persist.get("emergency_active") else
+                "charging_active" if self._persist.get("power_state") == "charging" else
+                "discharging_active" if self._persist.get("power_state") == "discharging" else
+                "none"
+            ),
             
             return {
                 "status": status,
