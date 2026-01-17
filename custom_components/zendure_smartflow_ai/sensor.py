@@ -208,7 +208,7 @@ class ZendureSmartFlowSensor(SensorEntity):
         )
         
         self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
+            "identifiers": {(DOMAIN, f"{entry.entry_id}_v130")},
             "name": INTEGRATION_NAME,
             "manufacturer": INTEGRATION_MANUFACTURER,
             "model": INTEGRATION_MODEL,
