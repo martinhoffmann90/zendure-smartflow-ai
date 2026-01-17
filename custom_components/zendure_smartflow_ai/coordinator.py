@@ -776,8 +776,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if not is_charging and not is_discharging:
                 recommendation = RECO_STANDBY
                 decision_reason = "state_idle"
-
-            next_action = "none"
             
             # --------------------------------------------------
             # FINAL AI STATUS (derived from EFFECTIVE action)
@@ -885,6 +883,16 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "emergency_active": bool(self._persist.get("emergency_active")),
                 "power_state": str(self._persist.get("power_state") or "idle"),
 
+                # --- NEW (V1.3.0) ---
+                "next_action": (
+                    "manual_charge" if ai_mode == AI_MODE_MANUAL and manual_action == MANUAL_CHARGE else
+                    "manual_discharge" if ai_mode == AI_MODE_MANUAL and manual_action == MANUAL_DISCHARGE else
+                    "emergency_charge" if self._persist.get("emergency_active") else
+                    "charging_active" if self._persist.get("power_state") == "charging" else
+                    "discharging_active" if self._persist.get("power_state") == "discharging" else
+                    "none"
+                ),
+                
                 "planning_checked": bool(self._persist.get("planning_checked")),
                 "planning_status": self._persist.get("planning_status"),
                 "planning_blocked_by": self._persist.get("planning_blocked_by"),
