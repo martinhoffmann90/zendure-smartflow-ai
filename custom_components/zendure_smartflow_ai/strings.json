@@ -46,18 +46,58 @@
     },
 
     "sensor": {
-      "status": { "name": "Systemstatus" },
-      "ai_status": { "name": "KI-Status" },
-      "recommendation": { "name": "Empfehlung" },
-      "decision_reason": { "name": "Entscheidungsgrund" },
-      "house_load": { "name": "Hauslast" },
-      "price_now": { "name": "Aktueller Strompreis" },
-      "avg_charge_price": { "name": "Ø Ladepreis Akku" },
-      "profit_eur": { "name": "Ersparnis / Gewinn" },
-      "planning_status": { "name": "Preis-Vorplanung Status" },
-      "planning_active": { "name": "Preis-Vorplanung aktiv" },
-      "planning_target_soc": { "name": "Ziel-SoC (Planung)" },
-      "planning_reason": { "name": "Planungsbegründung" }
+      "status": {
+        "name": "Systemstatus"
+      },
+      "ai_status": {
+        "name": "KI-Status"
+      },
+      "recommendation": {
+        "name": "Empfehlung"
+      },
+      "decision_reason": {
+        "name": "Entscheidungsgrund"
+      },
+
+      "next_action": {
+        "name": "Nächste Aktion",
+        "state": {
+          "none": "Keine Aktion geplant",
+          "planned_charge": "Geplantes Laden",
+          "planned_discharge": "Geplante Entladung",
+          "charging_active": "Ladevorgang aktiv",
+          "discharging_active": "Entladevorgang aktiv",
+          "manual_charge": "Manuelles Laden",
+          "manual_discharge": "Manuelle Entladung",
+          "emergency_charge": "Notladung"
+        }
+      },
+
+      "house_load": {
+        "name": "Hauslast"
+      },
+      "price_now": {
+        "name": "Aktueller Strompreis"
+      },
+      "avg_charge_price": {
+        "name": "Ø Ladepreis Akku"
+      },
+      "profit_eur": {
+        "name": "Ersparnis / Gewinn"
+      },
+
+      "planning_status": {
+        "name": "Preis-Vorplanung Status"
+      },
+      "planning_active": {
+        "name": "Preis-Vorplanung aktiv"
+      },
+      "planning_target_soc": {
+        "name": "Ziel-SoC (Planung)"
+      },
+      "planning_reason": {
+        "name": "Planungsbegründung"
+      }
     }
   }
 }
