@@ -206,6 +206,10 @@ class ZendureSmartFlowSensor(SensorEntity):
         self.entity_description = description
         self.coordinator = coordinator
         self._entry = entry
+        
+        # 🔒 FIX: Prevent creation of sensor.…_none entities
+        if not description.translation_key:
+            self._attr_name = description.key
 
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
         self._attr_device_info = {
