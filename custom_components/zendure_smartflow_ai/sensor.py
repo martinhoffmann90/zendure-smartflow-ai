@@ -38,7 +38,7 @@ PLANNING_STATUS_ENUMS = [
 ]
 
 # NEW: next-action enums (V1.3.0)
-NEXT_ACTION_ENUMS = [
+NEXT_ACTION_STATE_ENUMS = [
     "none",
     "planned_charge",
     "planned_discharge",
@@ -240,7 +240,7 @@ class ZendureSmartFlowSensor(SensorEntity):
             "planning_active",
             "planning_target_soc",
             "planning_reason",
-            "next_action",  # NEW
+            "next_action_state",  # NEW
         ):
             return details.get(key)
 
