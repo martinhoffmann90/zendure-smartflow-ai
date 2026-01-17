@@ -884,7 +884,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "power_state": str(self._persist.get("power_state") or "idle"),
 
                 # --- NEW (V1.3.0) ---
-                "next_action": (
+                "next_action_state": (
                     "manual_charge" if ai_mode == AI_MODE_MANUAL and manual_action == MANUAL_CHARGE else
                     "manual_discharge" if ai_mode == AI_MODE_MANUAL and manual_action == MANUAL_DISCHARGE else
                     "emergency_charge" if self._persist.get("emergency_active") else
