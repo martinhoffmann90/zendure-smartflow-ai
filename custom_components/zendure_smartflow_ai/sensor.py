@@ -54,6 +54,12 @@ NEXT_ACTION_ENUMS = [
 class ZendureSensorEntityDescription(SensorEntityDescription):
     runtime_key: str
 
+    def __post_init__(self):
+        if not self.key:
+            raise ValueError(
+                "ZendureSmartFlowSensor created without a key. "
+                "This would result in *_none entity_id."
+            )
 
 SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
     # --- ENUM sensors (translated) ---
@@ -173,8 +179,16 @@ async def async_setup_entry(
     add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    add_entities(ZendureSmartFlowSensor(entry, coordinator, d) for d in SENSORS)
 
+    # HARD SAFETY CHECK
+    for d in SENSORS:
+        if not d.key:
+            raise RuntimeError(f"Sensor without key detected: {d}")
+
+    add_entities(
+        ZendureSmartFlowSensor(entry, coordinator, d)
+        for d in SENSORS
+    )
 
 class ZendureSmartFlowSensor(SensorEntity):
     _attr_has_entity_name = True
