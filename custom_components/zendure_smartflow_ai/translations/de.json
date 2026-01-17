@@ -119,6 +119,20 @@
     }
   },
 
+  "next_action": {
+    "name": "Nächste Aktion",
+    "state": {
+      "none": "Keine Aktion geplant",
+      "planned_charge": "Geplante Ladung",
+      "planned_discharge": "Geplante Entladung",
+      "charging_active": "Ladung aktiv",
+      "discharging_active": "Entladung aktiv",
+      "manual_charge": "Manuelles Laden",
+      "manual_discharge": "Manuelles Entladen",
+      "emergency_charge": "Notladung"
+    }
+  }
+
   "state": {
     "select.zendure_smartflow_ai.ai_mode": {
       "automatic": "Automatik",
