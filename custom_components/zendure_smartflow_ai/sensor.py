@@ -90,9 +90,9 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
 
     # --- NEW SENSOR (V1.3.0) ---
     ZendureSensorEntityDescription(
-        key="next_action",
-        translation_key="next_action",
-        runtime_key="next_action",
+        key="next_action_state",
+        translation_key="next_action_state",
+        runtime_key="next_action_state",
         icon="mdi:clock-outline",
     ),
 
