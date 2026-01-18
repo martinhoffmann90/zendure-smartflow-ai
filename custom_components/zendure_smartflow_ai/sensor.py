@@ -243,7 +243,8 @@ class ZendureSmartFlowSensor(SensorEntity):
             "planning_active",
             "planning_target_soc",
             "planning_reason",
-            "next_action_state",  # NEW
+            "next_action_state",
+            "next_action_time",
         ):
             return details.get(key)
 
