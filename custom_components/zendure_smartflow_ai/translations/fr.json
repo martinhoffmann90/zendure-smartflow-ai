@@ -129,6 +129,10 @@
           "manual_discharge": "Décharge manuelle",
           "emergency_charge": "Charge d’urgence"
         }
+      },
+
+      "next_action_time": {
+        "name": "Heure de début de la prochaine action"
       }
     }
   },
