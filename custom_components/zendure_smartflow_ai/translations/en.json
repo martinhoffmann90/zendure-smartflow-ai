@@ -1,149 +1,53 @@
 {
   "title": "Zendure SmartFlow AI",
 
-  "config": {
-    "step": {
-      "user": {
-        "title": "Set up Zendure SmartFlow AI",
-        "description": "Connect your Zendure and energy sensors for intelligent and stable battery control."
-      }
-    }
-  },
-
   "entity": {
     "select": {
-      "ai_mode": {
-        "name": "Operating mode"
-      },
-      "manual_action": {
-        "name": "Manual action"
-      }
+      "ai_mode": { "name": "Operating Mode" },
+      "manual_action": { "name": "Manual Action" }
     },
 
     "number": {
-      "soc_min": { "name": "SoC minimum" },
-      "soc_max": { "name": "SoC maximum" },
-      "max_charge": { "name": "Max charge power" },
-      "max_discharge": { "name": "Max discharge power" },
-      "emergency_charge": { "name": "Emergency charge power" },
-      "emergency_soc": { "name": "Emergency charge below SoC" },
-      "very_expensive_threshold": { "name": "Very expensive threshold" },
-      "profit_margin_pct": { "name": "Profit margin (%)" }
+      "soc_min": { "name": "Minimum SoC" },
+      "soc_max": { "name": "Maximum SoC" },
+      "max_charge": { "name": "Max Charge Power" },
+      "max_discharge": { "name": "Max Discharge Power" },
+      "emergency_charge": { "name": "Emergency Charge Power" },
+      "emergency_soc": { "name": "Emergency SoC Threshold" },
+      "very_expensive_threshold": { "name": "Very Expensive Threshold" },
+      "profit_margin_pct": { "name": "Profit Margin (%)" }
     },
 
     "sensor": {
-      "status": {
-        "name": "System status",
+      "status": { "name": "System Status" },
+      "ai_status": { "name": "AI Status" },
+      "recommendation": { "name": "Recommendation" },
+      "decision_reason": { "name": "Decision Reason" },
+
+      "next_action_state": {
+        "name": "Next Action",
         "state": {
-          "init": "Initializing",
-          "ok": "OK",
-          "sensor_invalid": "Invalid sensor data",
-          "price_invalid": "Invalid price data"
-        }
-      },
-
-      "ai_status": {
-        "name": "AI status",
-        "state": {
-          "standby": "Standby",
-          "charge_surplus": "Charging (PV surplus)",
-          "cover_deficit": "Discharging (covering house load)",
-          "expensive_discharge": "Discharging (high electricity price)",
-          "very_expensive_force": "Forced discharge (extreme price peak)",
-          "emergency_charge": "Emergency charging active",
-          "manual": "Manual mode"
-        }
-      },
-
-      "recommendation": {
-        "name": "AI recommendation",
-        "state": {
-          "standby": "No action",
-          "charge": "Charge",
-          "discharge": "Discharge",
-          "emergency": "Emergency charge"
-        }
-      },
-
-      "decision_reason": {
-        "name": "Decision reason",
-        "state": {
-          "standby": "Standby",
-          "state_idle": "No demand detected",
-
-          "state_enter_discharge": "Discharging started (demand detected)",
-          "state_discharging": "Discharging active (covering house load)",
-          "state_enter_charge": "Charging started (surplus detected)",
-          "state_charging": "Charging active",
-
-          "pv_surplus_charge": "Charging from PV surplus",
-
-          "expensive_discharge": "Discharging due to high electricity price",
-          "very_expensive_force_discharge": "Forced discharge due to extreme price peak",
-
-          "emergency_latched_charge": "Emergency charge active (latched)",
-          "soc_min_enforced": "Discharge stopped (SoC minimum reached)",
-
-          "manual_mode": "Manual mode active",
-          "manual_standby": "Manual standby",
+          "none": "No action planned",
+          "planned_charge": "Planned charging",
+          "planned_discharge": "Planned discharging",
+          "charging_active": "Charging active",
+          "discharging_active": "Discharging active",
           "manual_charge": "Manual charging",
-          "manual_discharge": "Manual discharging"
+          "manual_discharge": "Manual discharging",
+          "emergency_charge": "Emergency charge"
         }
       },
 
-      "planning_status": {
-        "name": "Price planning status",
-        "state": {
-          "not_checked": "Not checked yet",
-          "planning_inactive_mode": "Planning inactive (mode)",
-          "planning_blocked_soc_full": "Battery full – planning blocked",
-          "planning_no_price_now": "No current electricity price",
-          "planning_no_price_data": "No price data available",
-          "planning_no_peak_detected": "No relevant price peak detected",
-          "planning_waiting_for_cheap_window": "Waiting for cheap charging window",
-          "planning_charge_now": "Price planning: charging allowed",
-          "planning_last_chance": "Last chance before price peak",
-          "planning_peak_detected_insufficient_window": "Price peak detected, but time window too short"
-        }
-      },
+      "planning_status": { "name": "Price Planning Status" },
+      "planning_active": { "name": "Price Planning Active" },
+      "planning_target_soc": { "name": "Target SoC (Planning)" },
+      "planning_reason": { "name": "Planning Reason" },
 
-      "planning_active": { "name": "Price planning active" },
-      "planning_target_soc": { "name": "Target SoC (price planning)" },
-      "planning_reason": { "name": "Planning reason" },
-
-      "ai_debug": { "name": "AI debug" },
-      "house_load": { "name": "House load" },
-      "price_now": { "name": "Current electricity price" },
-      "avg_charge_price": { "name": "Average battery charge price" },
-      "profit_eur": { "name": "Savings / profit (total)" }
-    }
-  },
-
-  "state": {
-    "select.zendure_smartflow_ai.ai_mode": {
-      "automatic": "Automatic",
-      "summer": "Summer",
-      "winter": "Winter",
-      "manual": "Manual"
-    },
-    "select.zendure_smartflow_ai.manual_action": {
-      "standby": "Standby",
-      "charge": "Charge",
-      "discharge": "Discharge"
-    }
-  },
-
-  "next_action_state": {
-    "name": "Next action",
-    "state": {
-      "none": "No action planned",
-      "planned_charge": "Planned charging",
-      "planned_discharge": "Planned discharging",
-      "charging_active": "Charging active",
-      "discharging_active": "Discharging active",
-      "manual_charge": "Manual charging",
-      "manual_discharge": "Manual discharging",
-      "emergency_charge": "Emergency charging active"
+      "ai_debug": { "name": "AI Debug" },
+      "house_load": { "name": "House Load" },
+      "price_now": { "name": "Current Electricity Price" },
+      "avg_charge_price": { "name": "Average Charge Price" },
+      "profit_eur": { "name": "Savings / Profit" }
     }
   }
 }
