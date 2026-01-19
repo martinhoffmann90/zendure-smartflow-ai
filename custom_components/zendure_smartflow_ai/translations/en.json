@@ -10,8 +10,8 @@
     "number": {
       "soc_min": { "name": "SoC minimum" },
       "soc_max": { "name": "SoC maximum" },
-      "max_charge": { "name": "Max charge power" },
-      "max_discharge": { "name": "Max discharge power" },
+      "max_charge": { "name": "Max charging power" },
+      "max_discharge": { "name": "Max discharging power" },
       "emergency_charge": { "name": "Emergency charge power" },
       "emergency_soc": { "name": "Emergency charge below SoC" },
       "very_expensive_threshold": { "name": "Very expensive threshold" },
@@ -19,81 +19,23 @@
     },
 
     "sensor": {
-      "status": {
-        "name": "System status",
-        "state": {
-          "init": "Initialization",
-          "ok": "OK",
-          "sensor_invalid": "Invalid sensor data",
-          "price_invalid": "Invalid price data"
-        }
-      },
+      "status": { "name": "System status" },
+      "ai_status": { "name": "AI status" },
+      "recommendation": { "name": "AI recommendation" },
+      "decision_reason": { "name": "Decision reason" },
 
-      "ai_status": {
-        "name": "AI status",
-        "state": {
-          "standby": "Standby",
-          "charge_surplus": "Charging (surplus)",
-          "cover_deficit": "Discharging (house load)",
-          "expensive_discharge": "Discharging (expensive)",
-          "very_expensive_force": "Forced discharge",
-          "emergency_charge": "Emergency charge",
-          "manual": "Manual mode"
-        }
-      },
-
-      "recommendation": {
-        "name": "Recommendation",
-        "state": {
-          "standby": "No action",
-          "charge": "Charge",
-          "discharge": "Discharge",
-          "emergency": "Emergency charge"
-        }
-      },
-
-      "decision_reason": {
-        "name": "Decision reason"
-      },
-
-      "planning_status": {
-        "name": "Price planning status",
-        "state": {
-          "not_checked": "Not checked yet",
-          "planning_inactive_mode": "Planning inactive",
-          "planning_blocked_soc_full": "Battery full",
-          "planning_no_price_now": "No current price",
-          "planning_no_price_data": "No price data available",
-          "planning_no_peak_detected": "No price peak detected",
-          "planning_waiting_for_cheap_window": "Waiting for cheap window",
-          "planning_charge_now": "Charge now",
-          "planning_last_chance": "Last chance",
-          "planning_peak_detected_insufficient_window": "Time window too short"
-        }
-      },
-
+      "planning_status": { "name": "Price planning status" },
       "planning_active": { "name": "Price planning active" },
       "planning_target_soc": { "name": "Target SoC (planning)" },
       "planning_reason": { "name": "Planning reason" },
 
-      "next_action_state": {
-        "name": "Next action",
-        "state": {
-          "none": "No action",
-          "planned_charge": "Planned charging",
-          "planned_discharge": "Planned discharging",
-          "charging_active": "Charging active",
-          "discharging_active": "Discharging active",
-          "manual_charge": "Manual charging",
-          "manual_discharge": "Manual discharging",
-          "emergency_charge": "Emergency charge"
-        }
-      },
-
+      "next_action_state": { "name": "Next action" },
       "next_action_time": { "name": "Next action start time" },
+
+      "ai_debug": { "name": "AI debug" },
       "house_load": { "name": "House load" },
       "price_now": { "name": "Current electricity price" },
-      "avg_charge_price": { "name": "Average battery charge price" },
+      "avg_charge_price": { "name": "Average charge price" },
       "profit_eur": { "name": "Savings / profit" }
     }
   }
