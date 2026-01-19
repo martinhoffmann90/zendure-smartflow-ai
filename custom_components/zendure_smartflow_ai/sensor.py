@@ -1,33 +1,28 @@
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Any
 
 from homeassistant.components.sensor import (
-    SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
+    SensorDeviceClass,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.util import dt as dt_util
 
 from .const import (
-    AI_STATUS_ENUMS,
     DOMAIN,
+    INTEGRATION_NAME,
     INTEGRATION_MANUFACTURER,
     INTEGRATION_MODEL,
-    INTEGRATION_NAME,
     INTEGRATION_VERSION,
-    NEXT_ACTION_STATE_ENUMS,
-    RECO_ENUMS,
     STATUS_ENUMS,
+    AI_STATUS_ENUMS,
+    RECO_ENUMS,
+    NEXT_ACTION_STATE_ENUMS,
+    NEXT_PLANNED_ACTION_ENUMS,
 )
-
-_LOGGER = logging.getLogger(__name__)
 
 PLANNING_STATUS_ENUMS = [
     "not_checked",
@@ -44,83 +39,101 @@ PLANNING_STATUS_ENUMS = [
     "planning_last_chance",
 ]
 
-
 @dataclass(frozen=True, kw_only=True)
 class ZendureSensorEntityDescription(SensorEntityDescription):
     runtime_key: str
 
     def __post_init__(self):
-        # Sicherheitsnetz gegen sensor.…_none
         if not self.key:
-            raise ValueError(
-                "ZendureSmartFlowSensor created without a key. "
-                "This would result in *_none entity_id."
-            )
+            raise ValueError("SensorEntityDescription without key detected")
 
-
+# ==================================================
+# SENSOR DEFINITIONS
+# ==================================================
 SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
-    # --- ENUM sensors (translated) ---
+
+    # --- Core status ---
     ZendureSensorEntityDescription(
         key="status",
         translation_key="status",
         runtime_key="status",
-        icon="mdi:power-plug",
         device_class=SensorDeviceClass.ENUM,
         options=STATUS_ENUMS,
+        icon="mdi:power-plug",
     ),
     ZendureSensorEntityDescription(
         key="ai_status",
         translation_key="ai_status",
         runtime_key="ai_status",
-        icon="mdi:robot",
         device_class=SensorDeviceClass.ENUM,
         options=AI_STATUS_ENUMS,
+        icon="mdi:robot",
     ),
     ZendureSensorEntityDescription(
         key="recommendation",
         translation_key="recommendation",
         runtime_key="recommendation",
-        icon="mdi:lightbulb-outline",
         device_class=SensorDeviceClass.ENUM,
         options=RECO_ENUMS,
+        icon="mdi:lightbulb-outline",
     ),
-    # --- NEW (V1.3.x) ---
+
+    # --- Realtime next action ---
     ZendureSensorEntityDescription(
         key="next_action_state",
         translation_key="next_action_state",
         runtime_key="next_action_state",
-        icon="mdi:clock-outline",
         device_class=SensorDeviceClass.ENUM,
         options=NEXT_ACTION_STATE_ENUMS,
+        icon="mdi:clock-outline",
     ),
     ZendureSensorEntityDescription(
         key="next_action_time",
         translation_key="next_action_time",
         runtime_key="next_action_time",
-        icon="mdi:clock-start",
         device_class=SensorDeviceClass.TIMESTAMP,
+        icon="mdi:clock-start",
     ),
-    # --- Debug / reasoning ---
+
+    # --- Future planning (V1.4.0) ---
     ZendureSensorEntityDescription(
-        key="ai_debug",
-        translation_key="ai_debug",
-        runtime_key="debug",
-        icon="mdi:bug",
+        key="next_planned_action",
+        translation_key="next_planned_action",
+        runtime_key="next_planned_action",
+        device_class=SensorDeviceClass.ENUM,
+        options=NEXT_PLANNED_ACTION_ENUMS,
+        icon="mdi:calendar-clock",
     ),
+    ZendureSensorEntityDescription(
+        key="next_planned_action_time",
+        translation_key="next_planned_action_time",
+        runtime_key="next_planned_action_time",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        icon="mdi:calendar-start",
+    ),
+
+    # --- Debug / reasoning ---
     ZendureSensorEntityDescription(
         key="decision_reason",
         translation_key="decision_reason",
         runtime_key="decision_reason",
         icon="mdi:head-question-outline",
     ),
+    ZendureSensorEntityDescription(
+        key="ai_debug",
+        translation_key="ai_debug",
+        runtime_key="debug",
+        icon="mdi:bug",
+    ),
+
     # --- Planning transparency ---
     ZendureSensorEntityDescription(
         key="planning_status",
         translation_key="planning_status",
         runtime_key="planning_status",
-        icon="mdi:timeline-alert",
         device_class=SensorDeviceClass.ENUM,
         options=PLANNING_STATUS_ENUMS,
+        icon="mdi:timeline-alert",
     ),
     ZendureSensorEntityDescription(
         key="planning_active",
@@ -132,8 +145,8 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         key="planning_target_soc",
         translation_key="planning_target_soc",
         runtime_key="planning_target_soc",
-        icon="mdi:battery-high",
         native_unit_of_measurement="%",
+        icon="mdi:battery-high",
     ),
     ZendureSensorEntityDescription(
         key="planning_reason",
@@ -141,63 +154,52 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         runtime_key="planning_reason",
         icon="mdi:text-long",
     ),
-    # --- Numeric sensors ---
+
+    # --- Energy / economics ---
     ZendureSensorEntityDescription(
         key="house_load",
         translation_key="house_load",
         runtime_key="house_load",
-        icon="mdi:home-lightning-bolt",
         native_unit_of_measurement="W",
+        icon="mdi:home-lightning-bolt",
     ),
     ZendureSensorEntityDescription(
         key="price_now",
         translation_key="price_now",
         runtime_key="price_now",
-        icon="mdi:currency-eur",
         native_unit_of_measurement="€/kWh",
+        icon="mdi:currency-eur",
     ),
     ZendureSensorEntityDescription(
         key="avg_charge_price",
         translation_key="avg_charge_price",
         runtime_key="avg_charge_price",
-        icon="mdi:scale-balance",
         native_unit_of_measurement="€/kWh",
+        icon="mdi:scale-balance",
     ),
     ZendureSensorEntityDescription(
         key="profit_eur",
         translation_key="profit_eur",
         runtime_key="profit_eur",
-        icon="mdi:cash",
         native_unit_of_measurement="€",
+        icon="mdi:cash",
     ),
 )
 
-
+# ==================================================
+# SETUP
+# ==================================================
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
     add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
+    add_entities(ZendureSmartFlowSensor(entry, coordinator, d) for d in SENSORS)
 
-    # HARD SAFETY CHECK: nie ohne key anlegen
-    for d in SENSORS:
-        if not d.key:
-            raise RuntimeError(f"Sensor without key detected: {d}")
-
-    entities: list[ZendureSmartFlowSensor] = []
-    for d in SENSORS:
-        if not d.key:
-            _LOGGER.error(
-                "Zendure SmartFlow AI: SensorEntityDescription ohne key entdeckt – wird übersprungen: %s",
-                d,
-            )
-            continue
-        entities.append(ZendureSmartFlowSensor(entry, coordinator, d))
-
-    add_entities(entities)
-
-
+# ==================================================
+# SENSOR ENTITY
+# ==================================================
 class ZendureSmartFlowSensor(SensorEntity):
     _attr_has_entity_name = True
 
@@ -209,13 +211,7 @@ class ZendureSmartFlowSensor(SensorEntity):
     ) -> None:
         self.entity_description = description
         self.coordinator = coordinator
-        self._entry = entry
 
-        # 🔒 FIX: Prevent creation of sensor.…_none entities
-        if not description.key:
-            raise ValueError(f"ZendureSmartFlowSensor created without key: {description}")
-
-        # Unique ID: stabil + eindeutig
         self._attr_unique_id = f"{DOMAIN}_{entry.entry_id}_{description.key}"
 
         self._attr_device_info = {
@@ -231,59 +227,22 @@ class ZendureSmartFlowSensor(SensorEntity):
         return self.coordinator.last_update_success
 
     @property
-    def native_value(self) -> Any:
+    def native_value(self):
         data = self.coordinator.data or {}
         details = data.get("details") or {}
         key = self.entity_description.runtime_key
 
-        # Werte, die in "details" leben
-        if key in (
-            "house_load",
-            "price_now",
-            "avg_charge_price",
-            "profit_eur",
-            "planning_status",
-            "planning_active",
-            "planning_target_soc",
-            "planning_reason",
-            "next_action_state",
-            "next_action_time",
-        ):
-            val = details.get(key)
-        else:
-            val = data.get(key)
+        if key in details:
+            return details.get(key)
 
-        # TIMESTAMP: robust gegen String -> datetime
-        if self.entity_description.device_class == SensorDeviceClass.TIMESTAMP:
-            if isinstance(val, str):
-                dt = dt_util.parse_datetime(val)
-                return dt
-            if isinstance(val, datetime):
-                return val
-
-        return val
+        return data.get(key)
 
     @property
     def extra_state_attributes(self):
         data = self.coordinator.data or {}
-        details = data.get("details") or {}
-
-        if self.entity_description.key in (
-            "status",
-            "ai_status",
-            "recommendation",
-            "decision_reason",
-            "ai_debug",
-            "planning_status",
-            "planning_active",
-            "planning_target_soc",
-            "planning_reason",
-            "next_action_state",
-            "next_action_time",
-        ):
-            return details
-
-        return None
+        return data.get("details")
 
     async def async_added_to_hass(self) -> None:
-        self.async_on_remove(self.coordinator.async_add_listener(self.async_write_ha_state))
+        self.async_on_remove(
+            self.coordinator.async_add_listener(self.async_write_ha_state)
+        )
