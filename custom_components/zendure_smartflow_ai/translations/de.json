@@ -124,10 +124,10 @@
           "wait": "Warten",
           "emergency": "Notladung"
         }
-      }
+      },
 
-      "next_action_time": { "name": "Startzeit nächste Aktion" },
-
+      "next_action_time": { 
+        "name": "Startzeit nächste Aktion" },
       "ai_debug": { "name": "KI-Debug" },
       "house_load": { "name": "Hauslast" },
       "price_now": { "name": "Aktueller Strompreis" },
