@@ -398,6 +398,18 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if float(peak_price) < float(expensive) and float(peak_price) < float(very_expensive):
             result.update(status="planning_no_peak_detected", blocked_by=None)
             return result
+        
+        # VERY EXPENSIVE PEAK → discharge during peak
+        if float(peak_price) >= float(very_expensive) and soc > soc_min:
+            result.update(
+                action="discharge",
+                watts=float(max_charge),  # Begrenzung erfolgt später
+                status="planning_discharge_now",
+                next_peak=peak_time.isoformat(),
+                reason="discharge_during_price_peak",
+                target_soc=soc_min,
+            )
+            return result
 
         # Target price (simple: peak * (1 - margin))
         margin = max(float(profit_margin_pct or 0.0), 0.0) / 100.0
@@ -608,6 +620,12 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._persist["planning_reason"] = planning.get("reason")
             self._persist["planning_target_soc"] = planning.get("target_soc")
             self._persist["planning_next_peak"] = planning.get("next_peak")
+            
+            # planning is considered active if it triggers a real action
+            if planning.get("action") in ("charge", "discharge"):
+                self._persist["planning_active"] = True
+            else:
+                self._persist["planning_active"] = False
 
             # --------------------------------------------------
             # PRICE PLANNING OVERRIDE (Beta2): charge in cheap window
@@ -631,6 +649,25 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 decision_reason = "planning_charge_before_peak"
                 self._persist["power_state"] = "charging"
                 power_state = "charging"
+            
+            # PRICE PLANNING OVERRIDE: discharge during very expensive peak
+            elif (
+                ai_mode == AI_MODE_AUTOMATIC
+                and planning.get("action") == "discharge"
+                and planning.get("status") == "planning_discharge_now"
+                and soc > soc_min
+                and not self._persist.get("emergency_active")
+            ):
+                planning_override = True
+                self._persist["planning_active"] = True
+
+                ac_mode = ZENDURE_MODE_OUTPUT
+                in_w = 0.0
+                out_w = min(float(max_discharge), max(float(deficit_raw), 0.0))
+                recommendation = RECO_DISCHARGE
+                decision_reason = "planning_discharge_peak"
+                self._persist["power_state"] = "discharging"
+                power_state = "discharging"
 
             # 1) emergency always wins (can override planning)
             if self._persist.get("emergency_active"):
@@ -819,6 +856,10 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     _LOGGER.debug("Zendure: forcing output_limit=0 before switching to AC INPUT")
 
             await self._set_ac_mode(ac_mode)
+            
+            # Zendure safety: after switching to OUTPUT, force output_limit again
+            if ac_mode == ZENDURE_MODE_OUTPUT:
+                await self._set_output_limit(out_w)
 
             last_mode = self._persist.get("last_set_mode")
             if last_mode != ac_mode:
