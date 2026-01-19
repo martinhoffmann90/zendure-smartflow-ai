@@ -385,7 +385,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 continue
 
             # Keep only future points
-            if t > now:
+            if t > now - timedelta(hours=2):
                 future.append((t, float(p)))
 
         if len(future) < 8:
@@ -622,6 +622,13 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._persist["planning_reason"] = planning.get("reason")
             self._persist["planning_target_soc"] = planning.get("target_soc")
             self._persist["planning_next_peak"] = planning.get("next_peak")
+            
+            # --- expose future planning even if not actionable yet ---
+            if planning.get("next_peak"):
+               self._persist["next_planned_action"] = (
+                   planning.get("action") if planning.get("action") != "none" else "wait"
+               )
+               self._persist["next_planned_action_time"] = planning.get("next_peak")
             
             # planning is considered active if it triggers a real action
             if planning.get("action") in ("charge", "discharge"):
@@ -876,6 +883,12 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 await self._set_input_limit(in_w)
                 await self._set_output_limit(out_w)
 
+            # --- HARD SYNC: power_state must reflect REAL power ---
+            if ac_mode != ZENDURE_MODE_OUTPUT or float(out_w) <= 0.0:
+               if self._persist.get("power_state") == "discharging":
+                    self._persist["power_state"] = "idle"
+                    power_state = "idle"
+            
             # FINAL EFFECTIVE STATE
             is_charging = ac_mode == ZENDURE_MODE_INPUT and float(in_w) > 0.0
             is_discharging = ac_mode == ZENDURE_MODE_OUTPUT and float(out_w) > 0.0
