@@ -114,6 +114,17 @@
           "emergency_charge": "Notladung"
         }
       },
+      
+      "next_planned_action": {
+        "name": "Geplante nächste Aktion",
+        "state": {
+          "none": "Keine Aktion geplant",
+          "charge": "Geplantes Laden",
+          "discharge": "Geplante Entladung",
+          "wait": "Warten",
+          "emergency": "Notladung"
+        }
+      }
 
       "next_action_time": { "name": "Startzeit nächste Aktion" },
 
