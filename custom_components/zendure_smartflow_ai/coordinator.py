@@ -629,10 +629,10 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             
             # --- expose future planning even if not actionable yet ---
             if planning.get("next_peak"):
-               self._persist["next_planned_action"] = (
-                   planning.get("action") if planning.get("action") != "none" else "wait"
-               )
-               self._persist["next_planned_action_time"] = planning.get("next_peak")
+                self._persist["next_planned_action"] = (
+                    planning.get("action") if planning.get("action") != "none" else "wait"
+                )
+                self._persist["next_planned_action_time"] = planning.get("next_peak")
             
             # planning is considered active if it triggers a real action
             if planning.get("action") in ("charge", "discharge"):
@@ -891,7 +891,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # --- HARD SYNC: power_state must reflect REAL power ---
             if ac_mode != ZENDURE_MODE_OUTPUT or float(out_w) <= 0.0:
-               if self._persist.get("power_state") == "discharging":
+                if self._persist.get("power_state") == "discharging":
                     self._persist["power_state"] = "idle"
                     power_state = "idle"
             
