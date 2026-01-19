@@ -365,36 +365,81 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             result.update(status="planning_no_price_data", blocked_by="price_data")
             return result
 
-        future_prices: list[float] = []
+        now = dt_util.utcnow()
+
+        # build future series with timestamps
+        future: list[tuple[Any, float]] = []
         for item in export:
             if not isinstance(item, dict):
-                return result
-            p = _to_float(item.get("price_per_kwh"), None)
-            if p is None:
-                return result
-            future_prices.append(float(p))
+                continue
 
-        if len(future_prices) < 8:
+            # Tibber-style: starts_at + price_per_kwh
+            ts = item.get("starts_at") or item.get("start") or item.get("time")
+            p = _to_float(item.get("price_per_kwh"), None)
+
+            if not ts or p is None:
+                continue
+
+            t = dt_util.parse_datetime(str(ts))
+            if not t:
+                continue
+
+            # keep only future points
+            if t > now:
+                future.append((t, float(p)))
+
+        if len(future) < 8:
             result.update(status="planning_no_price_data", blocked_by="price_data")
             return result
 
+        # peak detection
+        peak_time, peak_price = max(future, key=lambda x: x[1])
+
+        # if no relevant peak, we stop here
+        if peak_price < float(expensive) and peak_price < float(very_expensive):
+            result.update(status="planning_no_peak_detected", blocked_by=None)
+            return result
+
+        # Find latest cheap slot BEFORE peak
         margin = max(float(profit_margin_pct or 0.0), 0.0) / 100.0
-        peak_rel_idx = int(max(range(len(future_prices)), key=lambda i: float(future_prices[i])))
-        peak_price = float(future_prices[peak_rel_idx])
-        pre_peak = future_prices[:peak_rel_idx]
+        target_price = float(peak_price) * (1.0 - margin)
+
+        pre_peak = [(t, p) for (t, p) in future if t < peak_time]
+
         if len(pre_peak) < 4:
             result.update(status="planning_peak_detected_insufficient_window", blocked_by="price_data")
             return result
 
-        seg_thr = peak_price * 0.90
-        seg_prices: list[float] = []
-        j = peak_rel_idx
-        while j < len(future_prices) and float(future_prices[j]) >= seg_thr:
-            seg_prices.append(float(future_prices[j]))
-            j += 1
+        cheap_slots = [(t, p) for (t, p) in pre_peak if p <= target_price]
+        if not cheap_slots:
+            result.update(status="planning_waiting_for_cheap_window", blocked_by="price_data")
+            return result
 
-        peak_avg = sum(seg_prices) / max(len(seg_prices), 1)
-        target_price = peak_avg * (1.0 - margin)
+        latest_cheap_time, latest_cheap_price = max(cheap_slots, key=lambda x: x[0])
+
+        # Decide: if we are in a cheap slot now -> charge
+        if float(price_now) <= float(target_price):
+            watts = max(float(max_charge), 0.0)
+            result.update(
+                action="charge",
+                watts=watts,
+                status="planning_charge_now",
+                next_peak=peak_time.isoformat(),
+                reason="charge_before_price_peak",
+                latest_start=latest_cheap_time.isoformat(),
+                target_soc=min(float(soc_max), float(soc) + 30.0),
+            )
+            return result
+
+        result.update(
+            action="none",
+            status="planning_waiting_for_cheap_window",
+            next_peak=peak_time.isoformat(),
+            reason="waiting_for_cheap_price",
+            latest_start=latest_cheap_time.isoformat(),
+            target_soc=min(float(soc_max), float(soc) + 30.0),
+        )
+        return result
 
         if peak_avg < float(expensive) and peak_price < float(very_expensive):
             result.update(status="planning_no_peak_detected", blocked_by=None)
@@ -592,6 +637,30 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._persist["planning_blocked_by"] = planning.get("blocked_by")
             self._persist["planning_reason"] = planning.get("reason")
 
+            self._persist["planning_target_soc"] = planning.get("target_soc")
+            self._persist["planning_next_peak"] = planning.get("next_peak")
+
+            # ✅ FIX: planning_active nur dann true, wenn Planung gerade aktiv eingreift
+            if planning.get("action") == "charge":
+                self._persist["planning_active"] = True
+
+            # --------------------------------------------------
+            # PRICE PLANNING OVERRIDE (Beta2): charge in cheap window
+            # --------------------------------------------------
+            if (
+                ai_mode == AI_MODE_AUTOMATIC
+                and planning.get("action") == "charge"
+                and planning.get("status") == "planning_charge_now"
+                and soc < float(planning.get("target_soc") or soc_max)
+                and not self._persist.get("emergency_active")
+            ):
+                ac_mode = ZENDURE_MODE_INPUT
+                in_w = float(max_charge)
+                out_w = 0.0
+                recommendation = RECO_CHARGE
+                decision_reason = "planning_charge_before_peak"
+                self._persist["power_state"] = "charging"
+
             # 1) emergency always wins
             if self._persist.get("emergency_active"):
                 ac_mode = ZENDURE_MODE_INPUT
@@ -733,8 +802,11 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     self._persist["discharge_target_w"] = 0.0
 
                 # expensive / very expensive overlays (only while idle or discharging; never fight PV stop)
-                if price_now is not None and soc > soc_min and power_state != "charging":
+                RESERVE_SOC = float(soc_min) + 5.0
+
+                if price_now is not None and soc > RESERVE_SOC and power_state != "charging":
                     if price_now >= very_expensive and power_state != "charging":
+
                         # force discharge up to deficit, but never above max_discharge
                         ac_mode = ZENDURE_MODE_OUTPUT
                         recommendation = RECO_DISCHARGE
@@ -805,9 +877,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             planned_action = "none"
             planned_time = None
 
-            if planning.get("status") == "planning_charge_now":
+            if planning.get("action") == "charge":
                 planned_action = "charge"
-                planned_time = now + timedelta(minutes=30)
+                planned_time = dt_util.parse_datetime(str(planning.get("latest_start"))) if planning.get("latest_start") else None
 
             elif planning.get("action") == "discharge":
                 planned_action = "discharge"
