@@ -619,18 +619,25 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._persist["planning_target_soc"] = planning.get("target_soc")
             self._persist["planning_next_peak"] = planning.get("next_peak")
 
-            # --- NEXT PLANNED ACTION (priority: charge window before discharge peak) ---
-            if planning.get("status") == "planning_charge_now":
-                self._persist["next_planned_action"] = "charge"
-                self._persist["next_planned_action_time"] = now.isoformat()
+            # --- FIX: expose next planned action time consistently ---
+            next_action = None
+            next_time = None
 
-            elif planning.get("status") == "planning_waiting_for_cheap_window":
-                self._persist["next_planned_action"] = "charge"
-                self._persist["next_planned_action_time"] = planning.get("latest_start")
+            if planning.get("action") == "discharge" and planning.get("next_peak"):
+                next_action = "discharge"
+                next_time = planning.get("next_peak")
 
-            elif planning.get("action") == "discharge" and planning.get("next_peak"):
-                self._persist["next_planned_action"] = "discharge"
-                self._persist["next_planned_action_time"] = planning.get("next_peak")
+            elif planning.get("status") == "planning_waiting_for_cheap_window" and planning.get("latest_start"):
+                next_action = "charge"
+                next_time = planning.get("latest_start")
+
+            elif planning.get("status") == "planning_charge_now":
+                next_action = "charge"
+                next_time = now.isoformat()
+
+            if next_action:
+                self._persist["next_planned_action"] = next_action
+                self._persist["next_planned_action_time"] = next_time
 
             # planning is considered active if it triggers a real action
             self._persist["planning_active"] = planning.get("action") in ("charge", "discharge")
@@ -909,11 +916,12 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # else: keep previously exposed future planning (e.g. tomorrow peak)
 
             # NEXT ACTION TIMESTAMP (V1.3.x)
-            if prev_power_state != str(self._persist.get("power_state") or "idle"):
-                if self._persist.get("power_state") in ("charging", "discharging"):
-                    self._persist["next_action_time"] = dt_util.utcnow().isoformat()
-                else:
-                    self._persist["next_action_time"] = None
+            if self._persist.get("power_state") in ("charging", "discharging"):
+                self._persist["next_action_time"] = self._persist.get(
+                    "next_planned_action_time"
+                ) or dt_util.utcnow().isoformat()
+            else:
+                self._persist["next_action_time"] = None
 
             if not is_charging and not is_discharging and not planning_override:
                 recommendation = RECO_STANDBY
