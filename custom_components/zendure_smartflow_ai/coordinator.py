@@ -619,11 +619,17 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._persist["planning_target_soc"] = planning.get("target_soc")
             self._persist["planning_next_peak"] = planning.get("next_peak")
 
-            # --- expose future planning even if not actionable yet ---
-            if planning.get("next_peak"):
-                self._persist["next_planned_action"] = (
-                    planning.get("action") if planning.get("action") != "none" else "wait"
-                )
+            # --- NEXT PLANNED ACTION (priority: charge window before discharge peak) ---
+            if planning.get("status") == "planning_charge_now":
+                self._persist["next_planned_action"] = "charge"
+                self._persist["next_planned_action_time"] = now.isoformat()
+
+            elif planning.get("status") == "planning_waiting_for_cheap_window":
+                self._persist["next_planned_action"] = "charge"
+                self._persist["next_planned_action_time"] = planning.get("latest_start")
+
+            elif planning.get("action") == "discharge" and planning.get("next_peak"):
+                self._persist["next_planned_action"] = "discharge"
                 self._persist["next_planned_action_time"] = planning.get("next_peak")
 
             # planning is considered active if it triggers a real action
