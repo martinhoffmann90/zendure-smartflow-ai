@@ -245,13 +245,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 {"entity_id": self.entities.za_mode, "option": "manual"},
                 blocking=False,
             )
-        elif (out_w == 0):
-            await self.hass.services.async_call(
-                "select,"
-                "select_option",
-                {"entity_id": self.entities.za_mode, "option": "off"},
-                blocking=False,
-            )
         else :
             await self.hass.services.async_call(
                 "select,"
@@ -288,6 +281,20 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if last == val:
             return
         self._persist["last_set_output_w"] = val
+        if(watts == 0):
+            await self.hass.services.async_call(
+                "select,"
+                "select_option",
+                {"entity_id": self.entities.za_mode, "option": "off"},
+                blocking=False,
+            )
+        else:
+           await self.hass.services.async_call(
+                "select,"
+                "select_option",
+                {"entity_id": self.entities.za_mode, "option": "smart"},
+                blocking=False,
+            ) 
         # await self.hass.services.async_call(
         #     "number",
         #     "set_value",
