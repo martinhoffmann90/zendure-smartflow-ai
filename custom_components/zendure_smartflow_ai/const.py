@@ -29,7 +29,7 @@ CONF_PRICE_EXPORT_ENTITY = "price_export_entity"  # Tibber Export (attributes.da
 CONF_PRICE_NOW_ENTITY = "price_now_entity"        # direkter Preis-Sensor (€/kWh)
 
 # Zendure Steuer-Entitäten
-ZENDURE_MODE_INPUT = "ac_mode_entity"            # select input/output
+CONF_AC_MODE_ENTITY = "ac_mode_entity"            # select input/output
 CONF_INPUT_LIMIT_ENTITY = "input_limit_entity"    # number W
 CONF_OUTPUT_LIMIT_ENTITY = "output_limit_entity"  # number W
 

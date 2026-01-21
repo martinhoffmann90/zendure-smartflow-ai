@@ -939,10 +939,10 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 out_w = 0.0
 
             # Zendure requires output_limit=0 before AC input
-            if ac_mode == ZENDURE_MODE_INPUT:
-                if self._persist.get("last_set_output_w", 0) != 0:
-                    await self._set_output_limit(0)
-                    _LOGGER.debug("Zendure: forcing output_limit=0 before switching to AC INPUT")
+            # if ac_mode == ZENDURE_MODE_INPUT:
+            #     if self._persist.get("last_set_output_w", 0) != 0:
+            #         await self._set_output_limit(0)
+            #         _LOGGER.debug("Zendure: forcing output_limit=0 before switching to AC INPUT")
 
             ###################################################################################
             # Anpassung an ZA Manager!
