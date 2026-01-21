@@ -29,6 +29,9 @@ from .const import (
     GRID_MODE_NONE,
     GRID_MODE_SINGLE,
     GRID_MODE_SPLIT,
+    # MH adaption
+    CONF_ZAMANAGER_MODE,
+    CONF_ZAMANAGER_POWER,
     # settings keys (entry.options)
     SETTING_SOC_MIN,
     SETTING_SOC_MAX,
