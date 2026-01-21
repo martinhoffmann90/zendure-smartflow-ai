@@ -33,6 +33,10 @@ CONF_AC_MODE_ENTITY = "ac_mode_entity"            # select input/output
 CONF_INPUT_LIMIT_ENTITY = "input_limit_entity"    # number W
 CONF_OUTPUT_LIMIT_ENTITY = "output_limit_entity"  # number W
 
+# Zendure Manager Enitäten
+CONF_ZAMANAGER_MODE = "manager_mode_entity"
+CONF_ZAMANAGER_POWER = "manager_power_entity"
+
 # Grid Setup (empfohlen, weil wir daraus den Hausverbrauch intern berechnen)
 CONF_GRID_MODE = "grid_mode"
 CONF_GRID_POWER_ENTITY = "grid_power_entity"      # +import / -export

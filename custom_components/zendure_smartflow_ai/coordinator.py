@@ -103,6 +103,8 @@ class SelectedEntities:
     price_export: str | None
     price_now: str | None
     ac_mode: str
+    za_mode: str
+    za_power: str
     input_limit: str
     output_limit: str
 
@@ -126,6 +128,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             price_export=entry.data.get(CONF_PRICE_EXPORT_ENTITY),
             price_now=entry.data.get(CONF_PRICE_NOW_ENTITY),
             ac_mode=str(entry.data[CONF_AC_MODE_ENTITY]),
+            za_mode=str(entry.data[CONF_ZAMANAGER_MODE]),
+            za_power=str(entry.data[CONF_ZAMANAGER_POWER]),
             input_limit=str(entry.data[CONF_INPUT_LIMIT_ENTITY]),
             output_limit=str(entry.data[CONF_OUTPUT_LIMIT_ENTITY]),
             grid_mode=str(entry.data.get(CONF_GRID_MODE, GRID_MODE_NONE)),
@@ -230,12 +234,35 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if last == mode:
                 return
         self._persist["last_set_mode"] = mode
-        await self.hass.services.async_call(
-            "select",
-            "select_option",
-            {"entity_id": self.entities.ac_mode, "option": mode},
-            blocking=False,
-        )
+        # Kleiner Helper -> Wenn input, dann Manager auf manuell stellen um Ladestrom vorzugeben, sonst Mode auf off.
+        if(mode == ZENDURE_MODE_INPUT): 
+            await self.hass.services.async_call(
+                "select,"
+                "select_option",
+                {"entity_id": self.entities.za_mode, "option": "manual"},
+                blocking=False,
+            )
+        elif (out_w == 0):
+            await self.hass.services.async_call(
+                "select,"
+                "select_option",
+                {"entity_id": self.entities.za_mode, "option": "off"},
+                blocking=False,
+            )
+        else :
+            await self.hass.services.async_call(
+                "select,"
+                "select_option",
+                {"entity_id": self.entities.za_mode, "option": "smart"},
+                blocking=False,
+            )
+        
+        # await self.hass.services.async_call(
+        #     "select",
+        #     "select_option",
+        #     {"entity_id": self.entities.ac_mode, "option": mode},
+        #     blocking=False,
+        # )
 
     async def _set_input_limit(self, watts: float) -> None:
         """Set input limit only when it changes (avoid service spam / HA lag)."""
@@ -247,7 +274,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         await self.hass.services.async_call(
             "number",
             "set_value",
-            {"entity_id": self.entities.input_limit, "value": val},
+            {"entity_id": self.entities.za_power, "value": -val},
             blocking=False,
         )
 
@@ -258,12 +285,12 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if last == val:
             return
         self._persist["last_set_output_w"] = val
-        await self.hass.services.async_call(
-            "number",
-            "set_value",
-            {"entity_id": self.entities.output_limit, "value": val},
-            blocking=False,
-        )
+        # await self.hass.services.async_call(
+        #     "number",
+        #     "set_value",
+        #     {"entity_id": self.entities.output_limit, "value": val},
+        #     blocking=False,
+        # )
 
     # --------------------------------------------------
     # settings (stored in config entry options)

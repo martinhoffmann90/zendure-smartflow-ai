@@ -23,6 +23,8 @@ from .const import (
     GRID_MODE_NONE,
     GRID_MODE_SINGLE,
     GRID_MODE_SPLIT,
+    CONF_ZAMANAGER_MODE,
+    CONF_ZAMANAGER_POWER
 )
 
 
@@ -146,6 +148,12 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
 
                 vol.Required(CONF_OUTPUT_LIMIT_ENTITY, default=_val(CONF_OUTPUT_LIMIT_ENTITY)):
+                    selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+
+                vol.Required(CONF_ZAMANAGER_MODE, default=_val(CONF_ZAMANAGER_MODE)):
+                    selector.EntitySelector(selector.EntitySelectorConfig(domain="select")),
+                
+                vol.Required(CONF_ZAMANAGER_POWER, default=_val(CONF_ZAMANAGER_POWER)):
                     selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
 
                 vol.Required(CONF_GRID_MODE, default=_val(CONF_GRID_MODE) or GRID_MODE_SINGLE):
