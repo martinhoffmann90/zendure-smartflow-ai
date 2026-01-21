@@ -948,7 +948,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Anpassung an ZA Manager!
             if(ac_mode == ZENDURE_MODE_INPUT):
                 self._set_za_mode(ZENDURE_MANAGER_CHARGE, in_w)
-            elif(ac_mode == ZENDURE_MODE_OUTPUT, out_W > 0):
+            elif(ac_mode == ZENDURE_MODE_OUTPUT, out_w > 0):
                 self._set_za_mode(ZENDURE_MANAGER_SMART, 0)
             else:
                 self._set_za_mode(ZENDURE_MANAGER_OFF, 0)
