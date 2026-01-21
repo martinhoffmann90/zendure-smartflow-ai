@@ -78,6 +78,9 @@ from .const import (
     RECO_EMERGENCY,
     ZENDURE_MODE_INPUT,
     ZENDURE_MODE_OUTPUT,
+    ZENDURE_MANAGER_SMART,
+    ZENDURE_MANAGER_OFF,
+    ZENDURE_MANAGER_CHARGE
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -301,6 +304,23 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         #     {"entity_id": self.entities.output_limit, "value": val},
         #     blocking=False,
         # )
+
+    async def _set_za_mode(self, mode: str, watts: float) -> None:
+        watts = -watts
+
+        await self.hass.services.async_call(
+             "select,"
+              "select_option",
+            {"entity_id": self.entities.za_mode, "option": mode},
+         blocking=False,
+        )
+        await self.hass.services.async_call(
+            "number",
+            "set_value",
+            {"entity_id": self.entities.za_power, "value": watts},
+            blocking=False,
+        )
+
 
     # --------------------------------------------------
     # settings (stored in config entry options)
@@ -924,18 +944,28 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     await self._set_output_limit(0)
                     _LOGGER.debug("Zendure: forcing output_limit=0 before switching to AC INPUT")
 
-            await self._set_ac_mode(ac_mode)
-
-            # Zendure safety: after switching to OUTPUT, force output_limit again
-            if ac_mode == ZENDURE_MODE_OUTPUT:
-                await self._set_output_limit(out_w)
-
-            last_mode = self._persist.get("last_set_mode")
-            if last_mode != ac_mode:
-                _LOGGER.debug("Zendure: AC mode changed, skipping limits this cycle")
+            ###################################################################################
+            # Anpassung an ZA Manager!
+            if(ac_mode == ZENDURE_MODE_INPUT):
+                self._set_za_mode(ZENDURE_MANAGER_CHARGE, in_w)
+            elif(ac_mode == ZENDURE_MODE_OUTPUT, out_W > 0):
+                self._set_za_mode(ZENDURE_MANAGER_SMART, 0)
             else:
-                await self._set_input_limit(in_w)
-                await self._set_output_limit(out_w)
+                self._set_za_mode(ZENDURE_MANAGER_OFF, 0)
+
+
+            # await self._set_ac_mode(ac_mode)
+
+            # # Zendure safety: after switching to OUTPUT, force output_limit again
+            # if ac_mode == ZENDURE_MODE_OUTPUT:
+            #     await self._set_output_limit(out_w)
+
+            # last_mode = self._persist.get("last_set_mode")
+            # if last_mode != ac_mode:
+            #     _LOGGER.debug("Zendure: AC mode changed, skipping limits this cycle")
+            # else:
+            #     await self._set_input_limit(in_w)
+            #     await self._set_output_limit(out_w)
 
             # --- HARD SYNC: power_state must reflect REAL power ---
             if ac_mode != ZENDURE_MODE_OUTPUT or float(out_w) <= 0.0:
