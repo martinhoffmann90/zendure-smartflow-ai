@@ -239,29 +239,13 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self.runtime_mode.get("ai_mode") != AI_MODE_MANUAL:
             if last == mode:
                 return
-        self._persist["last_set_mode"] = mode
-        # Kleiner Helper -> Wenn input, dann Manager auf manuell stellen um Ladestrom vorzugeben, sonst Mode auf off.
-        if(mode == ZENDURE_MODE_INPUT): 
-            await self.hass.services.async_call(
-                "select,"
-                "select_option",
-                {"entity_id": self.entities.za_mode, "option": "manual"},
-                blocking=False,
-            )
-        else :
-            await self.hass.services.async_call(
-                "select,"
-                "select_option",
-                {"entity_id": self.entities.za_mode, "option": "smart"},
-                blocking=False,
-            )
-        
-        # await self.hass.services.async_call(
-        #     "select",
-        #     "select_option",
-        #     {"entity_id": self.entities.ac_mode, "option": mode},
-        #     blocking=False,
-        # )
+        self._persist["last_set_mode"] = mode        
+        await self.hass.services.async_call(
+            "select",
+            "select_option",
+            {"entity_id": self.entities.ac_mode, "option": mode},
+            blocking=False,
+        )
 
     async def _set_input_limit(self, watts: float) -> None:
         """Set input limit only when it changes (avoid service spam / HA lag)."""
@@ -284,20 +268,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if last == val:
             return
         self._persist["last_set_output_w"] = val
-        if(watts == 0):
-            await self.hass.services.async_call(
-                "select,"
-                "select_option",
-                {"entity_id": self.entities.za_mode, "option": "off"},
-                blocking=False,
-            )
-        else:
-           await self.hass.services.async_call(
-                "select,"
-                "select_option",
-                {"entity_id": self.entities.za_mode, "option": "smart"},
-                blocking=False,
-            ) 
         # await self.hass.services.async_call(
         #     "number",
         #     "set_value",
@@ -948,14 +918,14 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             #########################################################################################################################################
             # Anpassung an ZA Manager!
             if(ac_mode == ZENDURE_MODE_INPUT):
-                self._set_za_mode(ZENDURE_MANAGER_CHARGE, in_w)
+                await self._set_za_mode(ZENDURE_MANAGER_CHARGE, in_w)
                 z_manager_mode = ZENDURE_MANAGER_CHARGE
             elif(ac_mode == ZENDURE_MODE_OUTPUT 
                  and out_w > 0):
-                self._set_za_mode(ZENDURE_MANAGER_SMART, 0)
+                await self._set_za_mode(ZENDURE_MANAGER_SMART, 0)
                 z_manager_mode = ZENDURE_MANAGER_SMART
             else:
-                self._set_za_mode(ZENDURE_MANAGER_OFF, 0)
+                await self._set_za_mode(ZENDURE_MANAGER_OFF, 0)
                 z_manager_mode = ZENDURE_MANAGER_OFF
 
 
