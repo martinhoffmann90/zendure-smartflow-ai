@@ -642,6 +642,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ac_mode = ZENDURE_MODE_INPUT
             in_w = 0.0
             out_w = 0.0
+            z_manager_mode = "undef"
             recommendation = RECO_STANDBY
             decision_reason = "standby"
             prev_power_state = str(self._persist.get("power_state") or "idle")
@@ -944,14 +945,18 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             #         await self._set_output_limit(0)
             #         _LOGGER.debug("Zendure: forcing output_limit=0 before switching to AC INPUT")
 
-            ###################################################################################
+            #########################################################################################################################################
             # Anpassung an ZA Manager!
             if(ac_mode == ZENDURE_MODE_INPUT):
                 self._set_za_mode(ZENDURE_MANAGER_CHARGE, in_w)
-            elif(ac_mode == ZENDURE_MODE_OUTPUT, out_w > 0):
+                z_manager_mode = ZENDURE_MANAGER_CHARGE
+            elif(ac_mode == ZENDURE_MODE_OUTPUT 
+                 and out_w > 0):
                 self._set_za_mode(ZENDURE_MANAGER_SMART, 0)
+                z_manager_mode = ZENDURE_MANAGER_SMART
             else:
                 self._set_za_mode(ZENDURE_MANAGER_OFF, 0)
+                z_manager_mode = ZENDURE_MANAGER_OFF
 
 
             # await self._set_ac_mode(ac_mode)
@@ -1126,6 +1131,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "max_charge": max_charge,
                 "max_discharge": max_discharge,
                 "set_mode": ac_mode,
+                "z_manager": z_manager_mode,
                 "set_input_w": int(round(in_w_f, 0)),
                 "set_output_w": int(round(out_w_f, 0)),
                 "avg_charge_price": avg_charge_price,

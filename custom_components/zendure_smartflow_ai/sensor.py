@@ -164,6 +164,29 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         icon="mdi:home-lightning-bolt",
         native_unit_of_measurement="W",
     ),
+    # Debug Sensoren!
+    # --- Numeric sensors ---
+    # ZendureSensorEntityDescription(
+    #     key="input_plan",
+    #     translation_key="input_plan",
+    #     runtime_key="input_plan",
+    #     icon="mdi:home-lightning-bolt",
+    #     native_unit_of_measurement="W",
+    # ),
+    # ZendureSensorEntityDescription(
+    #     key="output_plan",
+    #     translation_key="output_plan",
+    #     runtime_key="output_plan",
+    #     icon="mdi:home-lightning-bolt",
+    #     native_unit_of_measurement="W",
+    # ),
+    # ZendureSensorEntityDescription(
+    #     key="za_manager_decision",
+    #     translation_key="za_manager_decision",
+    #     runtime_key="planningza_manager_decision_reason",
+    #     icon="mdi:text-long",
+    # ),
+    
     ZendureSensorEntityDescription(
         key="price_now",
         translation_key="price_now",
