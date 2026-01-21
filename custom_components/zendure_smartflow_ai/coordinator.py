@@ -1071,12 +1071,17 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "decision_reason": decision_reason,
             }
 
+            # --- FINAL FIX: force sensor states (never None) ---
             next_action_time_state = (
-                self._persist.get("next_planned_action_time") or ""
+                self._persist.get("next_planned_action_time")
+                if self._persist.get("next_planned_action_time") is not None
+                else ""
             )
 
             next_action_state = (
-                self._persist.get("next_planned_action") or "none"
+                self._persist.get("next_planned_action")
+                if self._persist.get("next_planned_action") is not None
+                else "none"
             )
 
             return {
